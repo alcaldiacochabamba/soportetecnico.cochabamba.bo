@@ -1,3 +1,4 @@
+version: '3.8'
 services:
   frontend:
     container_name: soportetecnicodev-frontend
@@ -10,8 +11,6 @@ services:
     volumes:
       - ./frontend:/code
       - /code/node_modules
-    
-    
     networks:
       - soportetecnicodev-network
 
@@ -25,16 +24,11 @@ services:
     restart: always
     command: >
       sh -c "npx sequelize-cli db:migrate && node app"
-    
     volumes:
       - ./backend:/app
       - /app/node_modules
-      
-    
     networks:
       - soportetecnicodev-network
-
-  
 
 networks:
   soportetecnicodev-network:

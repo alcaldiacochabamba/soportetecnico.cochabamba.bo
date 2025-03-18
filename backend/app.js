@@ -1,6 +1,7 @@
 // Carga las variables de entorno desde el archivo .env (si existe)
 require('dotenv').config();
 const axios = require('axios');
+const https = require('https');
 const { sequelize } = require('./models'); // O el archivo donde configuras la conexión
 const cors = require('cors');
 const express = require('express');
@@ -33,12 +34,21 @@ app.get("/", (req, res) => {
 // Usa el enrutador para todas las rutas que comienzan con '/api/v1'
 app.use("/api/v1", router);
 
+const axiosInstance = axios.create({
+  httpsAgent: new https.Agent({  
+    rejectUnauthorized: false // Solo para desarrollo
+  }),
+  headers: {
+    'Host': 'soportetecnicoapidev.cochabamba.bo'
+  }
+});
+
 app.get('/api/bienes', async (req, res) => {
     try {
       const codigo = req.query.codigo; // Obtener el código de los parámetros de la consulta
   console.log("Codigo",codigo);
       // Realizar la solicitud POST al servidor externo
-    const response = await axios.post('https://appgamc.cochabamba.bo/transparencia/servicio/ws-consulta-bienes.php', {
+    const response = await axiosInstance.post('https://appgamc.cochabamba.bo/transparencia/servicio/ws-consulta-bienes.php', {
         cod_bienes: codigo  // Enviar el código de bienes en el cuerpo de la solicitud
       });
       console.log("data",response);
@@ -54,7 +64,7 @@ app.get('/api/bienes', async (req, res) => {
     try {
       const data = qs.stringify(req.body); // Convierte a x-www-form-urlencoded
   
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         'https://appgamc.cochabamba.bo/transparencia/servicio/ws-consulta-bienes.php',
         data,
         {
@@ -74,7 +84,7 @@ app.get('/api/bienes', async (req, res) => {
     try {
       const data = qs.stringify(req.body); // Convierte a x-www-form-urlencoded
   
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         'https://appgamc.cochabamba.bo/transparencia/servicio/buscar-empleados.php',
         data,
         {
@@ -108,7 +118,7 @@ app.get('/api/bienes', async (req, res) => {
 
         console.log('Datos a enviar a la API externa:', data); // Debug
 
-        const response = await axios.post(
+        const response = await axiosInstance.post(
             'https://appgamc.cochabamba.bo/transparencia/servicio/busqueda_empleados.php',
             data,
             {
@@ -170,17 +180,7 @@ async function startServer() {
     const isConnected = await testDatabaseConnection();
     
     if (!isConnected) {
-        console.error('🛑 No se pudo establecer conexión con la base de datos. Deteniendo el servidor.');
-        process.exit(1);
-    }
-
-    // Sincronizar modelos
-    try {
-        await sequelize.sync({ force: false });
-        console.log('📚 Modelos sincronizados correctamente');
-    } catch (error) {
-        console.error('❌ Error al sincronizar modelos:', error);
-        process.exit(1);
+        console.warn('⚠️ No se pudo establecer conexión con la base de datos. Continuando sin sincronización.');
     }
 
     // Iniciar el servidor
@@ -197,3 +197,63 @@ startServer().catch(error => {
 
 // Exporta la aplicación para que otros archivos puedan usarla
 module.exports = app;
+
+app.post('/api/v1/user/login', async (req, res) => {
+  try {
+    console.log('Datos de login recibidos:', req.body);
+    
+    const response = await axiosInstance.post(
+      'https://soportetecnicoapidev.cochabamba.bo/api/v1/user/login', 
+      req.body,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Host': 'soportetecnicoapidev.cochabamba.bo'
+        }
+      }
+    );
+    
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error detallado de login:', {
+      message: error.message,
+      code: error.code,
+      config: error.config,
+      response: error.response ? error.response.data : 'No response'
+    });
+    
+    res.status(500).json({ 
+      error: 'Error en el inicio de sesión',
+      details: error.message 
+    });
+  }
+});
+
+const dns = require('dns');
+const os = require('os');
+
+function performNetworkDiagnostics() {
+    // Mostrar interfaces de red
+    console.log('Interfaces de red:', os.networkInterfaces());
+
+    // Resolver el hostname correctamente
+    dns.lookup('soportetecnicoapidev.cochabamba.bo', (err, resolvedAddress, family) => {
+        if (err) {
+            console.error('Error de resolución DNS:', err);
+            return;
+        }
+        console.log('Dirección IP resuelta:', resolvedAddress);
+        console.log('Familia de direcciones:', family);
+
+        // Resolución inversa solo si la resolución inicial fue exitosa
+        dns.reverse(resolvedAddress, (reverseErr, hostnames) => {
+            if (reverseErr) {
+                console.error('Error de resolución inversa:', reverseErr);
+                return;
+            }
+            console.log('Hostnames:', hostnames);
+        });
+    });
+}
+
+performNetworkDiagnostics();
