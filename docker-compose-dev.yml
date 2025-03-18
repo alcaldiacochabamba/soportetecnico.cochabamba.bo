@@ -22,11 +22,14 @@ services:
     ports:
       - "8041:3001"
     restart: always
+    env_file:
+      - ./backend/.env.dev
     command: >
-      sh -c "npx sequelize-cli db:migrate && node app"
+      sh -c "node app"
     volumes:
       - ./backend:/app
       - /app/node_modules
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     networks:
       - soportetecnicodev-network
 
