@@ -25,15 +25,14 @@ services:
     env_file:
       - ./backend/.env.dev
     command: >
-      sh -c "node app"
+      sh -c "npx sequelize-cli db:migrate && node app"
     volumes:
       - ./backend:/app
       - /app/node_modules
       - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     networks:
       - soportetecnicodev-network
-
+      
 networks:
   soportetecnicodev-network:
     driver: bridge
-
