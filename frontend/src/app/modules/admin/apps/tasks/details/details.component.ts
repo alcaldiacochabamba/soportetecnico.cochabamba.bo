@@ -1305,26 +1305,48 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
     }
 
     onTecnicoFilterChange(tecnicoId: string): void {
-        // Actualizar el valor en el formulario
-        this.servicioForm.patchValue({
-            tecnicoAsignado: tecnicoId
-        });
-
+        // Preparar los datos de actualización
         const updateData = {
             ...this.servicioForm.getRawValue(),
-            tecnicoAsignado: tecnicoId
+            tecnicoAsignado: Number(tecnicoId),
+            // Siempre cambiar a Pendiente cuando se asigna un técnico
+            estado: 'PENDIENTE'
         };
 
         if (this.servicio?.servicios_id) {
             this._tasksService.updateTask(this.servicio.servicios_id, updateData)
                 .subscribe({
-                    next: () => {
-                        this._snackBar.open('Técnico asignado correctamente', 'Cerrar', {
-                            duration: 3000,
-                            horizontalPosition: 'end',
-                            verticalPosition: 'top',
-                            panelClass: ['success-snackbar']
-                        });
+                    next: (response) => {
+                        // Actualizar el servicio con la respuesta de la API
+                        this.servicio = {
+                            ...this.servicio,
+                            tecnicoAsignado: Number(tecnicoId),
+                            estado: 'Pendiente'
+                        };
+
+                        // Actualizar el formulario 
+                        this.servicioForm.patchValue({
+                            tecnicoAsignado: Number(tecnicoId),
+                            estado: 'Pendiente'
+                        }, { emitEvent: false });
+
+                        // Notificar al componente de lista para eliminar el servicio
+                        this._tasksListComponent.removeServiceFromList(this.servicio.servicios_id);
+
+                        // Mostrar notificación de éxito
+                        this._snackBar.open(
+                            'Técnico asignado y estado cambiado a Pendiente', 
+                            'Cerrar', 
+                            {
+                                duration: 3000,
+                                horizontalPosition: 'end',
+                                verticalPosition: 'top',
+                                panelClass: ['success-snackbar']
+                            }
+                        );
+
+                        // Forzar detección de cambios
+                        this._changeDetectorRef.markForCheck();
                     },
                     error: (error) => {
                         console.error('Error al asignar técnico:', error);

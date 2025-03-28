@@ -1,6 +1,6 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDragPreview, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop'; // Importa módulos para funcionalidades de arrastrar y soltar
 import { DatePipe, DOCUMENT, NgClass, NgFor, NgIf, TitleCasePipe } from '@angular/common'; // Importa módulos comunes de Angular
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, ViewChild, ViewEncapsulation } from '@angular/core'; // Importa decoradores y servicios esenciales de Angular
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, ViewChild, ViewEncapsulation, Pipe, PipeTransform } from '@angular/core'; // Importa decoradores y servicios esenciales de Angular
 import { MatButtonModule } from '@angular/material/button'; // Importa el módulo de botones de Angular Material
 import { MatIconModule } from '@angular/material/icon'; // Importa el módulo de íconos de Angular Material
 import { MatDrawer, MatSidenavModule } from '@angular/material/sidenav'; // Importa módulos relacionados con paneles laterales
@@ -11,6 +11,19 @@ import { FuseMediaWatcherService } from '@fuse/services/media-watcher'; // Impor
 import { TasksService } from 'app/modules/admin/apps/tasks/tasks.service'; // Importa el servicio de tareas personalizado
 import { Tag, Servicio } from 'app/modules/admin/apps/tasks/tasks.types'; // Importa tipos de datos personalizados
 import { filter, fromEvent, Subject, takeUntil, forkJoin } from 'rxjs'; // Importa operadores y clases de RxJS
+import { trigger, transition, style, animate } from '@angular/animations';
+
+// Pipe de filtrado genérico
+@Pipe({
+    name: 'filter',
+    pure: false,
+    standalone: true
+})
+export class GenericFilterPipe implements PipeTransform {
+    transform(items: any[], filterFn: (item: any) => boolean): any[] {
+        return items ? items.filter(filterFn) : [];
+    }
+}
 
 @Component({
     selector       : 'tasks-list', // Define el selector del componente
@@ -18,7 +31,27 @@ import { filter, fromEvent, Subject, takeUntil, forkJoin } from 'rxjs'; // Impor
     encapsulation  : ViewEncapsulation.None, // Define el nivel de encapsulación del CSS
     changeDetection: ChangeDetectionStrategy.OnPush, // Define la estrategia de detección de cambios
     standalone     : true, // Indica que el componente es independiente
-    imports        : [MatSidenavModule, RouterOutlet, NgIf, MatButtonModule, MatTooltipModule, MatIconModule, CdkDropList, NgFor, CdkDrag, NgClass, CdkDragPreview, CdkDragHandle, RouterLink, TitleCasePipe, DatePipe], // Lista de módulos importados
+    imports        : [MatSidenavModule, RouterOutlet, NgIf, MatButtonModule, MatTooltipModule, MatIconModule, CdkDropList, NgFor, CdkDrag, NgClass, CdkDragPreview, CdkDragHandle, RouterLink, TitleCasePipe, DatePipe, GenericFilterPipe], // Lista de módulos importados
+    animations: [
+        trigger('itemRemoval', [
+            transition(':leave', [
+                style({ opacity: 1, height: '*' }),
+                animate('300ms ease-out', style({
+                    opacity: 0,
+                    height: '0px',
+                    margin: '0px'
+                }))
+            ])
+        ]),
+        trigger('itemAnimation', [
+            transition(':leave', [
+                animate('300ms ease-out', style({
+                    opacity: 0,
+                    transform: 'translateX(-100%)'
+                }))
+            ])
+        ])
+    ]
 })
 export class TasksListComponent implements OnInit, OnDestroy
 {
@@ -268,5 +301,20 @@ dropped(event: CdkDragDrop<Servicio[]>): void {
                 }
             }
         });
+    }
+
+    // Método para filtrar tareas que no deben mostrarse
+    shouldShowTask(task: Servicio): boolean {
+        // No mostrar tareas en estado Pendiente
+        return task.estado !== 'Pendiente';
+    }
+
+    // Método para manejar la eliminación de un servicio de la lista
+    removeServiceFromList(servicioId: number): void {
+        const index = this.services.findIndex(s => s.servicios_id === servicioId);
+        if (index !== -1) {
+            this.services.splice(index, 1);
+            this._changeDetectorRef.markForCheck();
+        }
     }
 }
