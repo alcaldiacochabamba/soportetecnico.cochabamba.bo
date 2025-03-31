@@ -573,7 +573,8 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
         state.loading = true;
         const list = this.lists.find(l => l.id === listId);
         
-        // Convertir 'TODOS' a null para la consulta al backend
+        // Si el ID del técnico seleccionado es 'TODOS', se convierte a null para que el backend no filtre por técnico
+        // Si el ID del técnico seleccionado es 'TODOS', se asigna null a tecnicoId para que el backend no filtre por técnico; de lo contrario, se utiliza el ID del técnico seleccionado.
         const tecnicoId = this.selectedTecnicoId === 'TODOS' ? null : this.selectedTecnicoId;
 
         this._scrumboardService.getCardsByStatus(

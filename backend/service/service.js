@@ -185,199 +185,207 @@ class ServiceService {
     }
     
     static async getServicesByTypeAndTechnician(req, res) {
+        // Imprimir en consola que se ha llamado a la función
         console.log('Service: getServicesByTypeAndTechnician called');
         try {
+            // Desestructurar los parámetros de consulta de la solicitud
             const { 
-                tipo, 
-                tecnicoAsignado, 
-                estado,  
-                page = 1, 
-                limit = 100, 
-                search = ''
+                tipo, // Tipo de servicio
+                tecnicoAsignado, // ID del técnico asignado
+                estado,  // Estado del servicio
+                page = 1, // Página actual, por defecto 1
+                limit = 100, // Límite de resultados por página, por defecto 100
+                search = '' // Término de búsqueda
             } = req.query;
             
             // Obtener el rol del usuario autenticado
             const role = req.user.role;
             
+            // Imprimir en consola los parámetros de consulta y el rol del usuario
             console.log('Query params:', { tipo, tecnicoAsignado, estado, page, limit, search });
             console.log('User role:', role);
             
+            // Definir condiciones de búsqueda iniciales
             const whereConditions = {
-                __v: 0  // Agregar esta condición para servicios activos
+                __v: 0  // Agregar esta condición para filtrar solo servicios activos
             };
 
-            // Si es rol 2, manejar las dos situaciones
+            // Si el rol del usuario es 2, manejar las condiciones específicas
             if (role === '2') {
-                // Obtener lista de usuarios activos primero
+                // Obtener lista de usuarios activos
                 const activeUsers = await sequelize.models.User.findAll({
                     where: {
-                        estado: 1 // Usuarios ACTIVOS tienen estado = 1
+                        estado: 1 // Filtrar usuarios que están activos
                     }
                 });
 
+                // Imprimir en consola la cantidad de usuarios activos encontrados
                 console.log('Usuarios activos encontrados:', activeUsers.length);
-                const activeUserIds = activeUsers.map(user => user.usuarios_id);
+                const activeUserIds = activeUsers.map(user => user.usuarios_id); // Obtener IDs de usuarios activos
                 console.log('IDs de usuarios activos:', activeUserIds);
 
+                // Si hay usuarios activos, agregar condiciones a la búsqueda
                 if (activeUserIds.length > 0) {
-                    
-                       
-                        // Situación 1: tecnicoAsignado es null y tecnicoRegistro es activo
-                        whereConditions[Op.and] = [
-                            {
-                                [Op.or]: [
-                                    {
-                                        tecnicoAsignado: null
-                                    },
-                                    {
-                                        tecnicoAsignado: {
-                                            [Op.in]: activeUserIds
-                                        }
+                    // Situación 1: tecnicoAsignado es null o está en la lista de usuarios activos
+                    whereConditions[Op.and] = [
+                        {
+                            [Op.or]: [
+                                {
+                                    tecnicoAsignado: null // Permitir servicios sin técnico asignado
+                                },
+                                {
+                                    tecnicoAsignado: {
+                                        [Op.in]: activeUserIds // Permitir técnicos activos
                                     }
-                                ]
-                            },
-                            {
-                                tecnicoRegistro: {
-                                    [Op.in]: activeUserIds
                                 }
+                            ]
+                        },
+                        {
+                            tecnicoRegistro: {
+                                [Op.in]: activeUserIds // Asegurar que el técnico de registro sea activo
                             }
-                        ];
-                    
+                        }
+                    ];
                 }
-            } else if (role === '3' ) {
+            } if (role === '3' ) {
+                // Imprimir en consola que se está verificando el rol 3
                 console.log('Entrando a verificación de rol 3:', {
                     role,
                     tecnicoAsignado,
                     user: req.user
                 });
 
-                const userId = req.user?.id || req.user?.usuarios_id;
+                const userId = req.user?.id || req.user?.usuarios_id; // Obtener ID del usuario
 
+                // Verificar si el usuario está autenticado
                 if (!userId) {
                     console.log('Usuario no autenticado o sin ID válido');
                     if (tipo) {
-                        whereConditions.tipo = decodeURIComponent(tipo).trim();
+                        whereConditions.tipo = decodeURIComponent(tipo).trim(); // Agregar tipo si está presente
                     }
                 } else {
                     // Verificar estado del usuario solicitante
                     const requestingUser = await sequelize.models.User.findOne({
-                        where: { usuarios_id: userId }
+                        where: { usuarios_id: userId } // Buscar el usuario en la base de datos
                     });
 
+                    // Si el usuario está inactivo
                     if (requestingUser && requestingUser.estado === 0) {
-                        // Usuario INACTIVO
                         console.log('Usuario está inactivo, buscando servicios de técnicos inactivos');
                         
+                        // Obtener lista de usuarios inactivos
                         const inactiveUsers = await sequelize.models.User.findAll({
-                            where: { estado: 0 }
+                            where: { estado: 0 } // Filtrar usuarios que están inactivos
                         });                        
 
-                        const inactiveUserIds = inactiveUsers.map(user => user.usuarios_id);
+                        const inactiveUserIds = inactiveUsers.map(user => user.usuarios_id); // Obtener IDs de usuarios inactivos
                         console.log('IDs de usuarios inactivos:', inactiveUserIds);
 
+                        // Si hay usuarios inactivos, agregar condiciones a la búsqueda
                         if (inactiveUserIds.length > 0) {
-                            
-
-                            // Luego agregar las condiciones de técnicos
+                            // Agregar condiciones para técnicos inactivos
                             whereConditions[Op.or] = [
                                 {
-                                    
-                                        
-                                    tecnicoAsignado: null,
+                                    tecnicoAsignado: null, // Permitir servicios sin técnico asignado
                                     tecnicoRegistro: {
-                                        [Op.in]: inactiveUserIds
+                                        [Op.in]: inactiveUserIds // Asegurar que el técnico de registro sea inactivo
                                     }
-                                        
-                                    
                                 },
                                 {
-                                    
-                                        
                                     tecnicoAsignado: {
-                                        [Op.in]: inactiveUserIds
+                                        [Op.in]: inactiveUserIds // Permitir técnicos inactivos
                                     },
                                     tecnicoRegistro: {
-                                        [Op.in]: inactiveUserIds
+                                        [Op.in]: inactiveUserIds // Asegurar que el técnico de registro sea inactivo
                                     }
-                                        
                                 }
                             ];
 
+                            // Imprimir en consola las condiciones completas para inactivos
                             console.log('Condiciones completas para inactivos:', JSON.stringify(whereConditions, null, 2));
                         }
                     } else {
                         // Usuario ACTIVO
                         console.log('Usuario está activo, buscando servicios de técnicos activos');
                         
+                        // Obtener lista de usuarios activos
                         const activeUsers = await sequelize.models.User.findAll({
-                            where: { estado: 1 }
+                            where: { estado: 1 } // Filtrar usuarios que están activos
                         });
 
-                        const activeUserIds = activeUsers.map(user => user.usuarios_id);
+                        const activeUserIds = activeUsers.map(user => user.usuarios_id); // Obtener IDs de usuarios activos
                         
+                        // Si hay usuarios activos, agregar condiciones a la búsqueda
                         if (activeUserIds.length > 0) {
-                            // Situación 1: tecnicoAsignado es null y tecnicoRegistro es activo
-                        whereConditions[Op.and] = [
-                            {
-                                [Op.or]: [
-                                    {
-                                        tecnicoAsignado: null
-                                    },
-                                    {
-                                        tecnicoAsignado: {
-                                            [Op.in]: activeUserIds
+                            // Situación 1: tecnicoAsignado es null o está en la lista de usuarios activos
+                            whereConditions[Op.and] = [
+                                {
+                                    [Op.or]: [
+                                        {
+                                            tecnicoAsignado: null // Permitir servicios sin técnico asignado
+                                        },
+                                        {
+                                            tecnicoAsignado: {
+                                                [Op.in]: activeUserIds // Permitir técnicos activos
+                                            }
                                         }
+                                    ]
+                                },
+                                {
+                                    tecnicoRegistro: {
+                                        [Op.in]: activeUserIds // Asegurar que el técnico de registro sea activo
                                     }
-                                ]
-                            },
-                            {
-                                tecnicoRegistro: {
-                                    [Op.in]: activeUserIds
                                 }
-                            }
-                        ];
+                            ];
                         }
                     }
                 }
-            } else if (tecnicoAsignado && tecnicoAsignado !== 'null') {
+            }  if (tecnicoAsignado && tecnicoAsignado !== 'null') {
+                // Agregar condición para el técnico asignado si está presente
                 whereConditions.tecnicoAsignado = parseInt(tecnicoAsignado, 10);
             }
 
+            // Agregar condición para el tipo si está presente
             if (tipo) {
                 whereConditions.tipo = decodeURIComponent(tipo).trim();
             }
 
+            // Agregar condición para el estado si está presente y no es nulo
             if (estado && estado !== 'null' && estado !== 'undefined') {
                 whereConditions.estado = {
-                    [Op.iLike]: decodeURIComponent(estado).trim()
+                    [Op.iLike]: decodeURIComponent(estado).trim() // Filtrar por estado
                 };
             }
 
+            // Imprimir en consola las condiciones de búsqueda
             console.log('Where conditions:', whereConditions);
 
+            // Realizar la búsqueda en la base de datos y contar los resultados
             const { count, rows } = await Service.findAndCountAll({
-                where: whereConditions,
-                order: [['fechaRegistro', 'DESC']],
-                limit: parseInt(limit),
-                offset: (parseInt(page) - 1) * parseInt(limit),
-                raw: true
+                where: whereConditions, // Aplicar condiciones de búsqueda
+                order: [['fechaRegistro', 'DESC']], // Ordenar por fecha de registro de forma descendente
+                limit: parseInt(limit), // Limitar resultados
+                offset: (parseInt(page) - 1) * parseInt(limit), // Calcular el desplazamiento
+                raw: true // Obtener resultados sin formato
             });
 
+            // Devolver respuesta exitosa con los servicios encontrados
             return jsonResponse.successResponse(
                 res,
                 200,
-                "Services retrieved successfully",
+                "Services retrieved successfully", // Mensaje de éxito
                 {
-                    total: count,
-                    perPage: parseInt(limit),
-                    currentPage: parseInt(page),
-                    totalPages: Math.ceil(count / limit),
-                    data: rows
+                    total: count, // Total de servicios encontrados
+                    perPage: parseInt(limit), // Resultados por página
+                    currentPage: parseInt(page), // Página actual
+                    totalPages: Math.ceil(count / limit), // Total de páginas
+                    data: rows // Datos de los servicios
                 }
             );
         } catch (error) {
+            // Manejar errores y devolver respuesta de error
             console.error("Service Error:", error);
-            return jsonResponse.errorResponse(res, 500, error.message);
+            return jsonResponse.errorResponse(res, 500, error.message); // Mensaje de error
         }
     }
 
