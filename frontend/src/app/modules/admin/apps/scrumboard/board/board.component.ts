@@ -257,6 +257,14 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
                         this._changeDetectorRef.detectChanges();
                     }
                 });
+
+            // Suscribirse a las actualizaciones de tarjetas del servicio
+            this._scrumboardService.cards$
+                .pipe(takeUntil(this._unsubscribeAll))
+                .subscribe(cards => {
+                    // Verificar si hay tarjetas que necesitan corrección de estado
+                    this.checkAndCorrectCardStatus(cards);
+                });
         }
 
         // Obtener el rol del usuario del token
@@ -358,6 +366,48 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
                 const sourceList = [...event.previousContainer.data];
                 const targetList = [...event.container.data];
 
+                // Verificar si se está intentando mover a SIN ASIGNAR con técnico asignado
+                if (newStatus === EstadoServicio.SIN_ASIGNAR && 
+                    card.tecnicoAsignado && 
+                    card.tecnicoAsignado !== 0 &&
+                    (card.estado === EstadoServicio.PENDIENTE || 
+                     card.estado === EstadoServicio.EN_PROGRESO || 
+                     card.estado === EstadoServicio.TERMINADO)) {
+                    // Mostrar mensaje de error
+                    this._snackBar.open(
+                        'No se puede mover a SIN ASIGNAR cuando hay un técnico asignado',
+                        'Cerrar',
+                        {
+                            duration: 3000,
+                            horizontalPosition: 'end',
+                            verticalPosition: 'top',
+                            panelClass: ['error-snackbar']
+                        }
+                    );
+                    return; // Detener la operación
+                }
+
+                // Verificar si se está intentando mover una tarjeta sin técnico asignado a otro estado
+                if (newStatus !== EstadoServicio.SIN_ASIGNAR && 
+                    (!card.tecnicoAsignado || card.tecnicoAsignado === 0)) {
+                    // Mostrar mensaje de error
+                    this._snackBar.open(
+                        'No se puede cambiar el estado sin asignar un técnico',
+                        'Cerrar',
+                        {
+                            duration: 3000,
+                            horizontalPosition: 'end',
+                            verticalPosition: 'top',
+                            panelClass: ['error-snackbar']
+                        }
+                    );
+                    return; // Detener la operación
+                }
+
+                // Determinar el nuevo estado basado en la asignación de técnico
+                let finalStatus = newStatus;
+                let targetContainerId = event.container.id;
+                
                 // Realizar el movimiento en la UI
                 transferArrayItem(
                     event.previousContainer.data,
@@ -372,10 +422,10 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
 
                 // Actualizar el estado y fechas de la tarjeta movida
                 const movedCard = event.container.data[event.currentIndex];
-                movedCard.estado = newStatus as EstadoServicio;
+                movedCard.estado = finalStatus as EstadoServicio;
 
                 // Actualizar fechas según el estado
-                switch (newStatus) {
+                switch (finalStatus) {
                     case EstadoServicio.SIN_ASIGNAR:
                     case EstadoServicio.PENDIENTE:
                         movedCard.fechaInicio = " ";
@@ -398,7 +448,7 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
                 this._changeDetectorRef.detectChanges();
 
                 // Actualizar en el backend
-                this._scrumboardService.updateServiceStatus(card.id, newStatus as EstadoServicio)
+                this._scrumboardService.updateServiceStatus(card.id, finalStatus as EstadoServicio)
                     .subscribe({
                         next: (updatedCard) => {
                             // Actualizar la tarjeta con los datos del servidor
@@ -610,6 +660,13 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
                 
                 state.total = response.total;
                 state.loading = false;
+                
+                // Verificar y corregir estados de tarjetas si es necesario
+                // Solo verificar la lista "SIN ASIGNAR"
+                if (list.title === EstadoServicio.SIN_ASIGNAR) {
+                    this.checkAndCorrectCardStatus(list.cards);
+                }
+                
                 this._changeDetectorRef.detectChanges();
             },
             error: (error) => {
@@ -780,10 +837,19 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
             }
         }
 
+        // Determinar el técnico asignado y el estado inicial
+        let tecnicoAsignado = null;
+        let estadoInicial = EstadoServicio.SIN_ASIGNAR;
+        
+        if (this.selectedTecnicoId !== 'TODOS') {
+            tecnicoAsignado = Number(this.selectedTecnicoId) || userId;
+            estadoInicial = EstadoServicio.PENDIENTE;
+        }
+
         // Crear el servicio solo con los datos mínimos necesarios
         const serviceData = {
             tipo: tipoServicio,
-            estado: EstadoServicio.SIN_ASIGNAR,
+            estado: estadoInicial,
             fechaRegistro: new Date().toISOString(),
             // Campos requeridos con valores por defecto
             nombreResponsableEgreso: ' ',
@@ -797,7 +863,7 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
             observaciones: ' ',
             gestion: 3,
             tecnicoRegistro: userId,
-            tecnicoAsignado: this.selectedTecnicoId === 'TODOS' ? userId : Number(this.selectedTecnicoId) || userId,
+            tecnicoAsignado: tecnicoAsignado,
             numero: 0,
             equipo: null
         };
@@ -812,14 +878,16 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
                         panelClass: ['success-snackbar']
                     });
 
-                    // Actualizar solo la lista "SIN ASIGNAR"
-                    const sinAsignarList = this.lists.find(l => l.id === 'sin-asignar');
-                    if (sinAsignarList) {
+                    // Determinar la lista donde se debe agregar la nueva tarjeta
+                    const targetListId = estadoInicial === EstadoServicio.SIN_ASIGNAR ? 'sin-asignar' : 'pendiente';
+                    const targetList = this.lists.find(l => l.id === targetListId);
+                    
+                    if (targetList) {
                         // Crear una nueva tarjeta con los datos de respuesta
                         const newCard: Card = {
                             id: response.data.servicios_id,
                             tipo: tipoServicio,
-                            estado: EstadoServicio.SIN_ASIGNAR,
+                            estado: estadoInicial,
                             fechaRegistro: new Date().toISOString(),
                             nombreSolicitante: '',
                             solicitante: '',
@@ -828,7 +896,7 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
                             tipoSolicitante: '',
                             oficinaSolicitante: '',
                             telefonoSolicitante: '',
-                            tecnicoAsignado: null,
+                            tecnicoAsignado: tecnicoAsignado,
                             fechaInicio: null,
                             fechaTerminado: null,
                             problema: '',
@@ -837,16 +905,16 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
                             codigoBienes: '',
                             tipoHardware: '',
                             descripcion: '',
-                            listId: 'sin-asignar',
+                            listId: targetListId,
                             position: 0,
-                            tecnicoRegistro: response.data.tecnicoRegistro  // Agregar esta línea
+                            tecnicoRegistro: response.data.tecnicoRegistro
                         };
 
                         // Agregar la nueva tarjeta al principio de la lista
-                        sinAsignarList.cards = [newCard, ...(sinAsignarList.cards || [])];
+                        targetList.cards = [newCard, ...(targetList.cards || [])];
                         
                         // Actualizar el total inmediatamente
-                        this.listStates['sin-asignar'].total += 1;
+                        this.listStates[targetListId].total += 1;
                         
                         // Forzar actualización de la vista
                         this._changeDetectorRef.detectChanges();
@@ -1073,5 +1141,62 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
             }
         }
         return false; // Si no hay token, no permitir crear
+    }
+
+    // Agregar este método para manejar la corrección automática de tarjetas
+    private checkAndCorrectCardStatus(cards: Card[]): void {
+        // Buscar tarjetas que tengan técnico asignado pero estén en SIN ASIGNAR
+        const cardsToCorrect = cards.filter(card => 
+            card.estado === EstadoServicio.SIN_ASIGNAR && 
+            card.tecnicoAsignado !== null && 
+            card.tecnicoAsignado !== 0
+        );
+        
+        if (cardsToCorrect.length > 0) {
+            console.log('Tarjetas que necesitan corrección de estado:', cardsToCorrect);
+            
+            // Procesar cada tarjeta que necesita corrección
+            cardsToCorrect.forEach(card => {
+                // Actualizar el estado en el backend
+                this._scrumboardService.updateServiceStatus(card.id, EstadoServicio.PENDIENTE)
+                    .subscribe({
+                        next: (updatedCard) => {
+                            console.log('Tarjeta actualizada automáticamente:', updatedCard);
+                            
+                            // Encontrar la lista de origen (SIN ASIGNAR)
+                            const sourceList = this.lists.find(l => l.title === EstadoServicio.SIN_ASIGNAR);
+                            
+                            // Encontrar la lista destino (PENDIENTE)
+                            const targetList = this.lists.find(l => l.title === EstadoServicio.PENDIENTE);
+                            
+                            if (sourceList && targetList) {
+                                // Encontrar el índice de la tarjeta en la lista de origen
+                                const cardIndex = sourceList.cards.findIndex(c => c.id === card.id);
+                                
+                                if (cardIndex !== -1) {
+                                    // Eliminar la tarjeta de la lista de origen
+                                    const [movedCard] = sourceList.cards.splice(cardIndex, 1);
+                                    
+                                    // Actualizar el estado de la tarjeta
+                                    movedCard.estado = EstadoServicio.PENDIENTE;
+                                    
+                                    // Agregar la tarjeta a la lista destino
+                                    targetList.cards.unshift(movedCard);
+                                    
+                                    // Actualizar contadores
+                                    this.listStates['sin-asignar'].total -= 1;
+                                    this.listStates['pendiente'].total += 1;
+                                    
+                                    // Forzar detección de cambios
+                                    this._changeDetectorRef.detectChanges();
+                                }
+                            }
+                        },
+                        error: (error) => {
+                            console.error('Error al corregir estado de tarjeta:', error);
+                        }
+                    });
+            });
+        }
     }
 }

@@ -102,6 +102,14 @@ export class ScrumboardService {
 
     // Método para mapear una tarjeta con fechas manejadas consistentemente
     private mapCardWithConsistentDates(item: any): Card {
+        // Manejar correctamente tecnicoAsignado
+        let tecnicoAsignado = item.tecnicoAsignado;
+        
+        // Si tecnicoAsignado es 0, null o undefined, establecerlo como null
+        if (tecnicoAsignado === 0 || tecnicoAsignado === null || tecnicoAsignado === undefined) {
+            tecnicoAsignado = null;
+        }
+        
         return {
             id: (item.servicios_id || item.id)?.toString() || '',
             nombreSolicitante: item.nombreSolicitante || item.solicitante || '',
@@ -112,7 +120,7 @@ export class ScrumboardService {
             problema: item.problema || '',
             tipo: item.tipo || 'ASISTENCIA',
             estado: item.estado || 'SIN ASIGNAR',
-            tecnicoAsignado: item.tecnicoAsignado || 0,
+            tecnicoAsignado: tecnicoAsignado,
             fechaRegistro: this.formatDate(item.fechaRegistro),
             fechaInicio: this.formatDate(item.fechaInicio),
             fechaTerminado: this.formatDate(item.fechaTerminado),
@@ -271,7 +279,7 @@ export class ScrumboardService {
     updateServiceStatus(serviceId: string, newStatus: EstadoServicio): Observable<Card> {
         console.log(`Iniciando actualización de estado para servicio ${serviceId} a ${newStatus}`);
         const nullToSpace = (value: any, field?: string) => {
-            if (value === null || value === undefined || value === '' || value === 'null') {
+            if (value === null || value === undefined || value === '' || value === 'null' || (field === 'tecnicoAsignado' && value === 0)) {
                 // Retornar null para equipo y tecnicoAsignado, espacio para otros campos
                 return (field === 'equipo' || field === 'tecnicoAsignado') ? null : " ";
             }
@@ -483,7 +491,7 @@ export class ScrumboardService {
                 informe: nullToSpace(updateData.informe || " "),
                 estado: nullToSpace(updateData.estado || "SIN ASIGNAR"),
               
-                tecnicoAsignado: nullToSpace(updateData.tecnicoAsignado, 'tecnicoAsignado'),
+                tecnicoAsignado: updateData.tecnicoAsignado === 0 ? null : updateData.tecnicoAsignado,
                 fechaRegistro: nullToSpace(updateData.fechaRegistro || new Date().toISOString()),
                 fechaInicio: nullToSpace(updateData.fechaInicio || " "),
                 fechaTerminado: nullToSpace(updateData.fechaTerminado || " "),
@@ -575,6 +583,15 @@ export class ScrumboardService {
 
         console.log('FormData recibido:', formData); // Agregar log para debug
 
+        // Determinar el técnico asignado
+        let tecnicoAsignado = null;
+        if (formData?.tecnicoAsignado) {
+            tecnicoAsignado = formData.tecnicoAsignado === 'TODOS' ? null : Number(formData.tecnicoAsignado);
+        }
+
+        // Determinar el estado basado en el técnico asignado
+        const estado = tecnicoAsignado ? "PENDIENTE" : "SIN ASIGNAR";
+
         const currentDate = new Date().toISOString();
         const serviceData = {
             nombreResponsableEgreso: " ",
@@ -588,12 +605,10 @@ export class ScrumboardService {
             telefonoResponsableEgreso: " ",
             gestion: 3,
             telefonoSolicitante: " ",
-            tecnicoAsignado: formData?.tecnicoAsignado ? 
-                (formData.tecnicoAsignado === 'TODOS' ? userId : Number(formData.tecnicoAsignado)) 
-                : userId,
+            tecnicoAsignado: tecnicoAsignado,
             observaciones: " ",
             tipoResponsableEgreso: " ",
-            estado: "SIN ASIGNAR",
+            estado: formData.estado || estado, // Usar el estado del formData o el calculado
             tipoSolicitante: " ",
             fechaTerminado: " ",
             oficinaResponsableEgreso: " ",
