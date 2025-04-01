@@ -72,6 +72,14 @@ export const defaultNavigation3: FuseNavigationItem[] = [
                 link : '/apps/scrumboard/asistencia-sitio',
                 roles     : [1, 2],
             },
+            {
+                id   : 'reportes',
+                title: 'Reportes',
+                type : 'basic',
+                icon : 'heroicons_outline:clipboard-document-check',
+                link : '/dashboards/finance',
+                roles     : [1, 2],
+            },
             
              {
                 id   : 'pages.settings',
@@ -160,6 +168,14 @@ export const compactNavigation3: FuseNavigationItem[] = [
                 type : 'basic',
                 icon : 'heroicons_outline:view-columns',
                 link : '/apps/scrumboard/asistencia-sitio',
+                roles     : [1,2],
+            },
+            {
+                id   : 'reportes',
+                title: 'Reportes',
+                type : 'basic',
+                icon : 'heroicons_outline:clipboard-document-check',
+                link : '/dashboards/project',
                 roles     : [1,2],
             },
             
@@ -362,8 +378,8 @@ export const horizontalNavigation3: FuseNavigationItem[] = [
                 title: 'Reportes',
                 type : 'basic',
                 icon : 'heroicons_outline:clipboard-document-check',
-                link : '/dashboards/project',
-                roles     : [1,2],
+                link : '/dashboards/finance',
+                roles     : [1, 2],
             },
             {
                 id   : 'pages.settings',

@@ -27,6 +27,21 @@ import { ChangeDetectorRef } from '@angular/core';
 // Registrar el plugin
 Chart.register(ChartDataLabels);
 
+// Interfaz para el usuario almacenado en localStorage
+interface UserData {
+  message: string;
+  data: {
+    usuarios_id: number;
+    nombres: string;
+    apellidos: string;
+    usuario: string;
+    email: string;
+    estado: number;
+    role: string;
+    image: string;
+  };
+}
+
 // Extender el tipo jsPDF para incluir autoTable
 interface jsPDFWithPlugin extends jsPDF {
     autoTable: (options: any) => jsPDF;
@@ -116,6 +131,11 @@ export class FinanceComponent implements OnInit, OnDestroy, AfterViewInit {
     // Variable para almacenar las URLs de las imágenes
     private imageUrls: Map<number, string> = new Map();
 
+    // Propiedades para control de roles
+    userRole: string;
+    userId: number;
+    canViewAllTechnicians: boolean = true;
+
     constructor(
         private _financeService: FinanceService,
         private _scrumboardService: ScrumboardService,
@@ -136,6 +156,9 @@ export class FinanceComponent implements OnInit, OnDestroy, AfterViewInit {
         // Ajustar la fecha fin si es el día actual
         const fechaFinAjustada = this.adjustEndDate(hoy);
         this.fechaFin = this.formatDateForApi(fechaFinAjustada);
+
+        // Obtener información del usuario desde localStorage
+        this.getUserFromLocalStorage();
 
         // Agregar observer para cambios en el tema
         this.observer = new MutationObserver((mutations) => {
@@ -195,6 +218,11 @@ export class FinanceComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     consultar(): void {
+        // Si el usuario es rol 3 y trata de ver todos los técnicos, restringir a ver solo sus datos
+        if (!this.canViewAllTechnicians && this.tecnico === 'TODOS') {
+            this.tecnico = this.userId.toString();
+        }
+        
         this.currentPage = 0;
         if (this.paginator) {
             this.paginator.pageIndex = 0;
@@ -867,6 +895,48 @@ export class FinanceComponent implements OnInit, OnDestroy, AfterViewInit {
         );
 
         return this.imageUrls.get(tecnicoId);
+    }
+
+    // Método para obtener usuario del localStorage
+    private getUserFromLocalStorage(): void {
+        const userString = localStorage.getItem('user');
+        if (userString) {
+            try {
+                const userData: UserData = JSON.parse(userString);
+                this.userRole = userData.data.role;
+                this.userId = userData.data.usuarios_id;
+                
+                // Si el usuario es rol 3 (técnico), restringir a ver solo sus datos
+                if (this.userRole === '3') {
+                    this.canViewAllTechnicians = false;
+                    this.tecnico = this.userId.toString();
+                    
+                    // Asegurarse de que el nombre del técnico esté disponible
+                    // incluso antes de que se carguen los técnicos
+                    const nombreCompleto = `${userData.data.nombres} ${userData.data.apellidos}`;
+                    this.tecnicosMap.set(this.userId, nombreCompleto);
+                    
+                    // Crear un técnico ficticio para asegurar que aparezca en el desplegable
+                    // hasta que se carguen los datos reales
+                    const tecnicoActual = {
+                        id: this.userId,
+                        nombre: nombreCompleto
+                    };
+                    
+                    // Agregar el técnico actual a la lista si no existe
+                    if (!this.tecnicos.some(t => t.id === this.userId)) {
+                        this.tecnicos = [tecnicoActual];
+                    }
+                }
+            } catch (error) {
+                console.error('Error al parsear datos de usuario:', error);
+            }
+        }
+    }
+
+    // Método para verificar si el usuario puede cambiar el técnico seleccionado
+    canChangeTechnician(): boolean {
+        return this.canViewAllTechnicians;
     }
 }
 
