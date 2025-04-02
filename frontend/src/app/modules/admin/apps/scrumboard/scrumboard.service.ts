@@ -143,7 +143,9 @@ export class ScrumboardService {
         estado: EstadoServicio, 
         tecnicoId?: string, 
         page: number = 1, 
-        limit: number = 10
+        limit: number = 10,
+        fechaInicio?: string,
+        fechaFin?: string
     ): Observable<{cards: Card[], total: number}> {
         let params = new HttpParams()
             .set('page', page.toString())
@@ -155,12 +157,23 @@ export class ScrumboardService {
             params = params.set('tecnicoAsignado', tecnicoId);
         }
 
+        // Agregar parámetros de fecha si están definidos
+        if (fechaInicio) {
+            params = params.set('fechaInicio', fechaInicio);
+        }
+        
+        if (fechaFin) {
+            params = params.set('fechaFin', fechaFin);
+        }
+
         console.log('Obteniendo tarjetas:', {
             tipoServicio,
             estado,
             tecnicoId,
             page,
-            limit
+            limit,
+            fechaInicio,
+            fechaFin
         });
 
         return this._httpClient.get<ServiceResponse>(`${this.apiUrl}/service/board`, { params }).pipe(
@@ -405,7 +418,12 @@ export class ScrumboardService {
     /**
      * Obtener servicios
      */
-    getServices(tipoServicio: TipoServicio, tecnicoId?: string): Observable<Card[]> {
+    getServices(
+        tipoServicio: TipoServicio, 
+        tecnicoId?: string,
+        fechaInicio?: string,
+        fechaFin?: string
+    ): Observable<Card[]> {
         let params = new HttpParams()
             .set('page', '1')
             .set('limit', '100')
@@ -414,6 +432,15 @@ export class ScrumboardService {
         
         if (tecnicoId) {
             params = params.set('tecnicoAsignado', tecnicoId);
+        }
+
+        // Agregar parámetros de fecha si están definidos
+        if (fechaInicio) {
+            params = params.set('fechaInicio', fechaInicio);
+        }
+        
+        if (fechaFin) {
+            params = params.set('fechaFin', fechaFin);
         }
 
         return this._httpClient.get<ServiceResponse>(`${this.apiUrl}/service/board`, { params }).pipe(

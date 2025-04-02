@@ -195,20 +195,53 @@ class ServiceService {
                 estado,  // Estado del servicio
                 page = 1, // Página actual, por defecto 1
                 limit = 100, // Límite de resultados por página, por defecto 100
-                search = '' // Término de búsqueda
+                search = '', // Término de búsqueda
+                fechaInicio: startDateParam, // Fecha de inicio del rango
+                fechaFin: endDateParam // Fecha de fin del rango
             } = req.query;
             
             // Obtener el rol del usuario autenticado
             const role = req.user.role;
             
             // Imprimir en consola los parámetros de consulta y el rol del usuario
-            console.log('Query params:', { tipo, tecnicoAsignado, estado, page, limit, search });
+            console.log('Query params:', { tipo, tecnicoAsignado, estado, page, limit, search, startDateParam, endDateParam });
             console.log('User role:', role);
             
             // Definir condiciones de búsqueda iniciales
             const whereConditions = {
                 __v: 0  // Agregar esta condición para filtrar solo servicios activos
             };
+
+            // Agregar filtro de rango de fechas si ambos parámetros están presentes
+            if (startDateParam && endDateParam) {
+                const startDate = new Date(decodeURIComponent(startDateParam).trim());
+                let endDate = new Date(decodeURIComponent(endDateParam).trim());
+                
+                // Ajustar las horas para cubrir todo el día
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setHours(23, 59, 59, 999);
+                
+                console.log('Filtrando por rango de fechas:', { startDate, endDate });
+                
+                // Crear condición para buscar en cualquiera de los campos de fecha
+                whereConditions[Op.or] = [
+                    {
+                        fechaRegistro: {
+                            [Op.between]: [startDate.toISOString(), endDate.toISOString()]
+                        }
+                    },
+                    {
+                        fechaInicio: {
+                            [Op.between]: [startDate.toISOString(), endDate.toISOString()]
+                        }
+                    },
+                    {
+                        fechaTerminado: {
+                            [Op.between]: [startDate.toISOString(), endDate.toISOString()]
+                        }
+                    }
+                ];
+            }
 
             // Si el rol del usuario es 2, manejar las condiciones específicas
             if (role === '2') {

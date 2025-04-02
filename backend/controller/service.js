@@ -384,6 +384,7 @@ class ServiceController {
     static async getServicesByTypeAndTechnician(req, res) {
         try {
             console.log('Controller: getServicesByTypeAndTechnician called');
+            // Pasar todos los parámetros de consulta, incluyendo fechaInicio y fechaFin
             return await ServiceService.getServicesByTypeAndTechnician(req, res);
         } catch (error) {
             console.error('Controller Error:', error);

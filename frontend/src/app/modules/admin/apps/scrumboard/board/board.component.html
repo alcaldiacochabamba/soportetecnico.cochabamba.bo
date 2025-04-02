@@ -6,9 +6,7 @@
         <div class="board-header">
             <div class="header-content">
                 <!-- Título arriba -->
-                <div class="title-section mb-4">
-                    <h2 class="board-title text-2xl font-bold">{{board?.title}}</h2>
-                </div>
+               
 
                 <!-- Contenedor flex para tarjetas y controles -->
                 <div class="flex items-center gap-4">
@@ -116,44 +114,76 @@
                     </div>
 
                     <!-- Controles a la derecha -->
-                    <div class="flex items-center gap-4 ml-4">
-                        <button
-                            mat-flat-button
-                            [color]="'primary'"
-                            [disabled]="!canCreateService()"
-                            (click)="createNewService()">
-                            <mat-icon [svgIcon]="'heroicons_outline:plus'"></mat-icon>
-                            <span class="ml-2 hidden sm:inline">Nuevo Servicio</span>
-                        </button>
-                        <mat-form-field class="tecnico-select-wide">
-                            <mat-label>Técnico asignado</mat-label>
-                            <mat-select 
-                                [(ngModel)]="selectedTecnicoId"
-                                (selectionChange)="onTecnicoFilterChange($event.value)"
-                                [disabled]="!canSelectTecnico">
-                                
-                                <!-- Campo de búsqueda -->
-                                <mat-select-trigger>
-                                    {{ getSelectedTecnicoDisplay() }}
-                                </mat-select-trigger>
+                    <div class="flex flex-col gap-4 ml-4">
+                        <!-- Primera fila: Botón Nuevo Servicio y Técnico asignado -->
+                        <div class="flex items-center gap-4">
+                            <button
+                                mat-flat-button
+                                [color]="'primary'"
+                                [disabled]="!canCreateService()"
+                                (click)="createNewService()">
+                                <mat-icon [svgIcon]="'heroicons_outline:plus'"></mat-icon>
+                                <span class="ml-2 hidden sm:inline">Nuevo Servicio</span>
+                            </button>
+                            <mat-form-field class="tecnico-select-wide">
+                                <mat-label>Técnico asignado</mat-label>
+                                <mat-select 
+                                    [(ngModel)]="selectedTecnicoId"
+                                    (selectionChange)="onTecnicoFilterChange($event.value)"
+                                    [disabled]="!canSelectTecnico">
+                                    
+                                    <!-- Campo de búsqueda -->
+                                    <mat-select-trigger>
+                                        {{ getSelectedTecnicoDisplay() }}
+                                    </mat-select-trigger>
 
-                                <div *ngIf="canSelectTecnico" class="search-box">
-                                    <mat-form-field appearance="outline" class="w-full">
-                                        <mat-icon matPrefix class="mr-2">search</mat-icon>
-                                        <input 
-                                            matInput
-                                            [ngModel]="searchTerm"
-                                            (ngModelChange)="onSearchChange($event)"
-                                            placeholder="Buscar técnico...">
-                                    </mat-form-field>
-                                </div>
+                                    <div *ngIf="canSelectTecnico" class="search-box">
+                                        <mat-form-field appearance="outline" class="w-full">
+                                            <mat-icon matPrefix class="mr-2">search</mat-icon>
+                                            <input 
+                                                matInput
+                                                [ngModel]="searchTerm"
+                                                (ngModelChange)="onSearchChange($event)"
+                                                placeholder="Buscar técnico...">
+                                        </mat-form-field>
+                                    </div>
+                                    
+                                    <mat-option *ngFor="let tecnico of filteredTecnicos" [value]="tecnico.id">
+                                        {{ tecnico.nombre }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+                        
+                        <!-- Segunda fila: Filtro de fechas -->
+                        <div class="flex items-center gap-2">
+                            <mat-form-field appearance="outline" class="w-40 sm:w-48 mat-form-field-no-padding">
+                                <mat-label>Fecha Inicio</mat-label>
+                                <input matInput [matDatepicker]="pickerInicio" [(ngModel)]="fechaInicio">
+                                <mat-datepicker-toggle matSuffix [for]="pickerInicio"></mat-datepicker-toggle>
+                                <mat-datepicker #pickerInicio></mat-datepicker>
+                            </mat-form-field>
 
-                                
-                                <mat-option *ngFor="let tecnico of filteredTecnicos" [value]="tecnico.id">
-                                    {{ tecnico.nombre }}
-                                </mat-option>
-                            </mat-select>
-                        </mat-form-field>
+                            <mat-form-field appearance="outline" class="w-40 sm:w-48 mat-form-field-no-padding">
+                                <mat-label>Fecha Fin</mat-label>
+                                <input matInput [matDatepicker]="pickerFin" [(ngModel)]="fechaFin">
+                                <mat-datepicker-toggle matSuffix [for]="pickerFin"></mat-datepicker-toggle>
+                                <mat-datepicker #pickerFin></mat-datepicker>
+                            </mat-form-field>
+
+                            <div class="flex flex-col gap-2">
+                                <button 
+                                    class="rounded-full px-6 py-2 bg-primary-500 text-white"
+                                    (click)="aplicarFiltroFechas()">
+                                    Filtrar
+                                </button>
+                                <button 
+                                    class="rounded-full px-6 py-2 border border-gray-300 dark:border-gray-700"
+                                    (click)="limpiarFiltroFechas()">
+                                    Limpiar
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

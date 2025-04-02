@@ -20,6 +20,8 @@ import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 
 interface ListState {
     page: number;
@@ -51,7 +53,9 @@ interface ListState {
         ScrumboardCardComponent,
         MatTooltipModule,
         MatSnackBarModule,
-        MatInputModule
+        MatInputModule,
+        MatDatepickerModule,
+        MatNativeDateModule
     ]
 })
 export class ScrumboardBoardComponent implements OnInit, OnDestroy {
@@ -73,6 +77,8 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
     searchTerm: string = '';
     filteredTecnicos: any[] = [];
     userRole: string = '3'; // valor por defecto
+    fechaInicio: Date = null;
+    fechaFin: Date = null;
 
     private readonly HIDDEN_LISTS_KEY = 'scrumboard_hidden_lists';
 
@@ -1197,6 +1203,97 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
                         }
                     });
             });
+        }
+    }
+
+    aplicarFiltroFechas(): void {
+        // Formatear fechas para la API (YYYY-MM-DD)
+        const fechaInicioStr = this.fechaInicio ? 
+            this.fechaInicio.toISOString().split('T')[0] : null;
+        const fechaFinStr = this.fechaFin ? 
+            this.fechaFin.toISOString().split('T')[0] : null;
+        
+        // Recargar todas las listas con el filtro de fechas
+        this.loadAllLists(fechaInicioStr, fechaFinStr);
+    }
+
+    limpiarFiltroFechas(): void {
+        this.fechaInicio = null;
+        this.fechaFin = null;
+        
+        // Recargar todas las listas sin filtro de fechas
+        this.loadAllLists();
+    }
+
+    loadAllLists(fechaInicio?: string, fechaFin?: string): void {
+        // Obtener todas las listas visibles
+        const visibleLists = this.lists.filter(list => !this.hiddenLists.includes(list.id));
+        
+        // Cargar cada lista
+        visibleLists.forEach(list => {
+            this.loadList(list.id, 1, this.listStates[list.id]?.limit || 10, fechaInicio, fechaFin);
+        });
+    }
+
+    loadList(listId: string, page: number = 1, limit: number = 10, fechaInicio?: string, fechaFin?: string): void {
+        // Obtener el estado correspondiente a la lista
+        const estado = this.getEstadoFromListId(listId);
+        
+        // Actualizar el estado de la lista
+        this.listStates[listId] = {
+            ...this.listStates[listId],
+            loading: true,
+            page: page,
+            limit: limit
+        };
+        
+        // Llamar al servicio con los parámetros de fecha
+        this._scrumboardService.getCardsByStatus(
+            this.selectedTipoServicio.toUpperCase() as TipoServicio,
+            estado,
+            this.selectedTecnicoId === 'TODOS' ? null : this.selectedTecnicoId,
+            page,
+            limit,
+            fechaInicio,
+            fechaFin
+        ).subscribe({
+            next: (result) => {
+                // Actualizar la lista con los resultados
+                const list = this.lists.find(l => l.id === listId);
+                if (list) {
+                    list.cards = result.cards;
+                    
+                    // Actualizar el estado de la lista
+                    this.listStates[listId] = {
+                        ...this.listStates[listId],
+                        loading: false,
+                        total: result.total
+                    };
+                }
+            },
+            error: (error) => {
+                console.error(`Error al cargar la lista ${listId}:`, error);
+                this.listStates[listId].loading = false;
+            }
+        });
+    }
+
+    /**
+     * Obtener el estado correspondiente al ID de la lista
+     */
+    getEstadoFromListId(listId: string): EstadoServicio {
+        switch (listId) {
+            case 'sin-asignar':
+                return EstadoServicio.SIN_ASIGNAR;
+            case 'pendiente':
+                return EstadoServicio.PENDIENTE;
+            case 'en-progreso':
+                return EstadoServicio.EN_PROGRESO;
+            case 'terminado':
+                return EstadoServicio.TERMINADO;
+            default:
+                console.error('ID de lista no válido:', listId);
+                return EstadoServicio.SIN_ASIGNAR; // Valor por defecto
         }
     }
 }
