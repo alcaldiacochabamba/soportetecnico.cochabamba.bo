@@ -9,10 +9,11 @@
                
 
                 <!-- Contenedor flex para tarjetas y controles -->
-                <div class="flex items-center gap-4">
-                    <!-- Versión móvil: Desplegable -->
-                    <div class="block lg:hidden flex-grow">
-                        <mat-form-field class="w-full min-w-[200px]">
+                <div class="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+                    
+                    <!-- Versión móvil: Desplegable (visible solo en móvil) -->
+                    <div class="w-full lg:hidden">
+                        <mat-form-field class="w-full">
                             <mat-label>Tipo de Servicio</mat-label>
                             <mat-select 
                                 [(ngModel)]="selectedTipoServicio"
@@ -62,7 +63,7 @@
                         </mat-form-field>
                     </div>
 
-                    <!-- Versión desktop: Tarjetas -->
+                    <!-- Versión desktop: Tarjetas (visible solo en desktop) -->
                     <div class="hidden lg:flex lg:flex-grow grid grid-cols-3 gap-4">
                         <!-- Tarjeta ASISTENCIA -->
                         <div class="flex items-center w-full p-4 rounded-lg shadow bg-card hover:shadow-xl transition-shadow duration-150 ease-in-out cursor-pointer"
@@ -114,7 +115,7 @@
                     </div>
 
                     <!-- Controles a la derecha -->
-                    <div class="flex flex-col gap-4 ml-4">
+                    <div class="flex flex-col gap-4 lg:ml-4">
                         <!-- Primera fila: Botón Nuevo Servicio y Técnico asignado -->
                         <div class="flex items-center gap-4">
                             <button
@@ -156,29 +157,29 @@
                         </div>
                         
                         <!-- Segunda fila: Filtro de fechas -->
-                        <div class="flex items-center gap-2">
-                            <mat-form-field appearance="outline" class="w-40 sm:w-48 mat-form-field-no-padding">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                            <mat-form-field appearance="outline" class="w-full sm:w-40 mat-form-field-no-padding">
                                 <mat-label>Fecha Inicio</mat-label>
                                 <input matInput [matDatepicker]="pickerInicio" [(ngModel)]="fechaInicio">
                                 <mat-datepicker-toggle matSuffix [for]="pickerInicio"></mat-datepicker-toggle>
                                 <mat-datepicker #pickerInicio></mat-datepicker>
                             </mat-form-field>
 
-                            <mat-form-field appearance="outline" class="w-40 sm:w-48 mat-form-field-no-padding">
+                            <mat-form-field appearance="outline" class="w-full sm:w-40 mat-form-field-no-padding">
                                 <mat-label>Fecha Fin</mat-label>
                                 <input matInput [matDatepicker]="pickerFin" [(ngModel)]="fechaFin">
                                 <mat-datepicker-toggle matSuffix [for]="pickerFin"></mat-datepicker-toggle>
                                 <mat-datepicker #pickerFin></mat-datepicker>
                             </mat-form-field>
 
-                            <div class="flex flex-col gap-2">
+                            <div class="flex flex-row sm:flex-col gap-2 w-full sm:w-auto">
                                 <button 
-                                    class="rounded-full px-6 py-2 bg-primary-500 text-white"
+                                    class="flex-1 sm:flex-auto rounded-full px-4 py-2 bg-primary-500 text-white"
                                     (click)="aplicarFiltroFechas()">
                                     Filtrar
                                 </button>
                                 <button 
-                                    class="rounded-full px-6 py-2 border border-gray-300 dark:border-gray-700"
+                                    class="flex-1 sm:flex-auto rounded-full px-4 py-2 border border-gray-300 dark:border-gray-700"
                                     (click)="limpiarFiltroFechas()">
                                     Limpiar
                                 </button>
