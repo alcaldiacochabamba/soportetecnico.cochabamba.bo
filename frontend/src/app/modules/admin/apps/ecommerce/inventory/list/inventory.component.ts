@@ -21,16 +21,14 @@ import { debounceTime, map, merge, Observable, Subject, switchMap, takeUntil } f
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import {MatDatepickerModule} from '@angular/material/datepicker';
 import { NativeDateAdapter, DateAdapter } from '@angular/material/core';
-
-
+import { Injectable } from '@angular/core';
+import { MAT_DATE_LOCALE } from '@angular/material/core';
 
 import {  FormControl } from '@angular/forms';
-
 
 import {MatCardModule} from '@angular/material/card';
 import { tap } from 'rxjs/operators';  // Para el operador tap
 import { of } from 'rxjs';  // Para crear un Observable vacío (en caso de que sea necesario)
-
 
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
@@ -42,16 +40,32 @@ import { AuthService } from 'app/core/auth/auth.service';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
+@Injectable()
+export class CustomDateAdapter extends NativeDateAdapter {
+  override getFirstDayOfWeek(): number {
+    return 1; // Lunes como primer día de la semana
+  }
 
+  override getDayOfWeekNames(style: 'long' | 'short' | 'narrow'): string[] {
+    return style === 'long' 
+      ? ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+      : ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  }
 
+  override getMonthNames(style: 'long' | 'short' | 'narrow'): string[] {
+    return style === 'long'
+      ? ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+      : ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  }
+}
 
 export const MY_DATE_FORMATS = {
     parse: {
       dateInput: 'DD/MM/YYYY',  // Formato de entrada (día/mes/año)
     },
     display: {
-      dateInput: 'DD',  // Formato de salida (día mes año)
-      monthYearLabel: 'MMMM YYYY', // Para mostrar el mes y el año en el selector
+      dateInput: 'DD/MM/YYYY',  // Formato de salida (día mes año)
+      monthYearLabel: 'MMM YYYY', // Para mostrar el mes y el año en el selector
       dateA11yLabel: 'LL',
       monthDayA11yLabel: 'DD MMMM',
     },
@@ -211,8 +225,9 @@ interface jsPDFWithPlugin extends jsPDF {
         MatInputModule,
         MatAutocompleteModule], // Módulos que se importan para el uso en el componente  
     providers: [
-        
         { provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS },
+        { provide: MAT_DATE_LOCALE, useValue: 'es-BO' },
+        { provide: DateAdapter, useClass: CustomDateAdapter }
     ]
    
   
