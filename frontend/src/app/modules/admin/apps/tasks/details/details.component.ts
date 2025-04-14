@@ -31,7 +31,10 @@ import { ErrorStateMatcher } from '@angular/material/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-
+import { NativeDateAdapter, DateAdapter } from '@angular/material/core';
+import { MAT_DATE_LOCALE } from '@angular/material/core';
+import { MAT_DATE_FORMATS } from '@angular/material/core';
+import { Injectable } from '@angular/core';
 export class CustomErrorStateMatcher implements ErrorStateMatcher {
     isErrorState(control: FormControl | null, form: FormGroupDirective | NgForm | null): boolean {
         return !!(control && control.value && 
@@ -77,6 +80,38 @@ interface jsPDFWithPlugin extends jsPDF {
     internal: any;
 }
 
+// Define the date formats
+export const MY_DATE_FORMATS = {
+    parse: {
+      dateInput: 'DD/MM/YYYY',  // Formato de entrada (día/mes/año)
+    },
+    display: {
+      dateInput: 'DD/MM/YYYY',  // Formato de salida (día mes año)
+      monthYearLabel: 'MMM YYYY', // Para mostrar el mes y el año en el selector
+      dateA11yLabel: 'LL',
+      monthDayA11yLabel: 'DD MMMM',
+    },
+};
+
+@Injectable()
+export class CustomDateAdapter extends NativeDateAdapter {
+  override getFirstDayOfWeek(): number {
+    return 1; // Lunes como primer día de la semana
+  }
+
+  override getDayOfWeekNames(style: 'long' | 'short' | 'narrow'): string[] {
+    return style === 'long' 
+      ? ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+      : ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  }
+
+  override getMonthNames(style: 'long' | 'short' | 'narrow'): string[] {
+    return style === 'long'
+      ? ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+      : ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  }
+}
+
 @Component({
     selector       : 'tasks-details',                    // Selector del componente para uso en templates
     templateUrl    : './details.component.html',         // Ruta al archivo de template HTML
@@ -91,6 +126,11 @@ interface jsPDFWithPlugin extends jsPDF {
                      MatDatepickerModule, FuseFindByKeyPipe, DatePipe,
                      MatTooltipModule, MatSelectModule,
                      MatCardModule, MatAutocompleteModule],
+    providers: [
+        { provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS },
+        { provide: MAT_DATE_LOCALE, useValue: 'es-BO' },
+        { provide: DateAdapter, useClass: CustomDateAdapter }
+    ]
 })
 // Clase del componente que implementa los hooks del ciclo de vida OnInit (inicialización), AfterViewInit (después de inicializar la vista) y OnDestroy (limpieza)
 export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy 
