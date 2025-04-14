@@ -7,7 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
+import { MatNativeDateModule, DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
 import { NgIf, NgFor, DatePipe } from '@angular/common';
 import { Card, TipoServicio, Equipo } from '../../scrumboard.models';
 import { ScrumboardService } from '../../scrumboard.service';
@@ -21,6 +21,40 @@ import { MatCardModule } from '@angular/material/card';
 import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { Injectable } from '@angular/core';
+import { NativeDateAdapter } from '@angular/material/core';
+
+
+export const MY_DATE_FORMATS = {
+    parse: {
+        dateInput: 'DD/MM/YYYY',
+    },
+    display: {
+        dateInput: 'DD/MM/YYYY',
+        monthYearLabel: 'MMM YYYY',
+        dateA11yLabel: 'LL',
+        monthDayA11yLabel: 'DD MMMM',
+    },
+};
+
+@Injectable()
+export class CustomDateAdapter extends NativeDateAdapter {
+    override getFirstDayOfWeek(): number {
+        return 1; // Lunes como primer día de la semana
+    }
+
+    override getDayOfWeekNames(style: 'long' | 'short' | 'narrow'): string[] {
+        return style === 'long' 
+            ? ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+            : ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    }
+
+    override getMonthNames(style: 'long' | 'short' | 'narrow'): string[] {
+        return style === 'long'
+            ? ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+            : ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    }
+}
 
 // Agregar la interfaz para jsPDF con autoTable
 interface jsPDFWithPlugin extends jsPDF {
@@ -49,6 +83,11 @@ interface jsPDFWithPlugin extends jsPDF {
         MatTooltipModule,
         MatAutocompleteModule,
         MatCardModule
+    ],
+    providers: [
+        { provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS },
+        { provide: MAT_DATE_LOCALE, useValue: 'es-BO' },
+        { provide: DateAdapter, useClass: CustomDateAdapter }
     ]
 })
 export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
