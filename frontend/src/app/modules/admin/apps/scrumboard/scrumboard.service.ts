@@ -65,6 +65,18 @@ interface ServiceResponse {
     };
 }
 
+interface Empleado {
+    id: number;
+    nombre_completo: string;
+    numdocumento: string;
+    cargo: string;
+    tipo_contrato: string;
+    unidad: string;
+    telefono?: string;
+    telefono_coorp?: string;
+    nro_item?: string;
+}
+
 @Injectable({providedIn: 'root'})
 export class ScrumboardService {
     private readonly _apiUrl = environment.baseUrl;
@@ -845,6 +857,55 @@ export class ScrumboardService {
      */
     getTecnicoById(tecnicoId: number): Observable<any> {
         return this._httpClient.get<any>(`${this.apiUrl}/user/${tecnicoId}`);
+    }
+
+    buscarEmpleados(nombreCompleto: string): Observable<Empleado[] | null> {
+        const headers = new HttpHeaders().set('Content-Type', 'application/x-www-form-urlencoded');
+        const body = `nombre_completo=${encodeURIComponent(nombreCompleto)}`;
+
+        console.log('Buscando empleados con término:', nombreCompleto);
+
+        return this._httpClient.post<{ status: boolean; data: Empleado[] }>(
+            `${this.baseUrlAlt}/api/empleados`, 
+            body, 
+            { headers }
+        ).pipe(
+            map(response => {
+                console.log('Respuesta completa de la API:', response);
+                if (response && response.status && Array.isArray(response.data)) {
+                    return response.data;
+                }
+                return null;
+            }),
+            catchError(error => {
+                console.error('Error en la búsqueda de empleados:', error);
+                return of(null);
+            })
+        );
+    }
+
+    buscarEmpleadosPorCI(ci: string): Observable<any> {
+        const formData = new FormData();
+        formData.append('dato', ci);
+        formData.append('tipo', 'D');
+
+        console.log('Enviando búsqueda de CI:', ci);
+
+        return this._httpClient.post(
+            `${this.apiUrl}/proxy/buscar-empleados-ci`,
+            formData
+        ).pipe(
+            map(response => {
+                if (response && response['data']) {
+                    return Array.isArray(response['data']) ? response['data'] : [response['data']];
+                }
+                return [];
+            }),
+            catchError(error => {
+                console.error('Error en buscarEmpleadosPorCI:', error);
+                return of([]);
+            })
+        );
     }
 }
 

@@ -21,15 +21,38 @@
     <form [formGroup]="cardForm" (ngSubmit)="onSubmit()" class="flex flex-col flex-auto p-6 overflow-y-auto">
         <!-- Información del Solicitante -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <!-- Nombre del Solicitante (ocupando todo el ancho) -->
+            <!-- Nombre del Solicitante -->
             <mat-form-field class="w-full sm:col-span-2">
                 <mat-label>Nombre del Solicitante</mat-label>
-                <input matInput formControlName="solicitante">
+                <input matInput 
+                       formControlName="solicitante"
+                       [matAutocomplete]="empleadoAuto"
+                       (input)="buscarEmpleados($event.target.value)">
+                <mat-autocomplete #empleadoAuto="matAutocomplete" 
+                                  (optionSelected)="onEmpleadoSelected($event)">
+                    <mat-option *ngFor="let empleado of filteredEmpleados" [value]="empleado">
+                        {{ empleado.nombre_completo }} ({{ empleado.numdocumento }})
+                    </mat-option>
+                </mat-autocomplete>
             </mat-form-field>
 
+            <!-- Carnet de Identidad -->
             <mat-form-field class="w-full">
                 <mat-label>Carnet de Identidad</mat-label>
-                <input matInput formControlName="carnet">
+                <input matInput 
+                       formControlName="carnet"
+                       [matAutocomplete]="empleadoCIAuto">
+                <button matSuffix 
+                        mat-icon-button 
+                        (click)="buscarPorCI()"
+                        matTooltip="Buscar por CI">
+                    <mat-icon>search</mat-icon>
+                </button>
+                <mat-autocomplete #empleadoCIAuto="matAutocomplete">
+                    <mat-option *ngFor="let empleado of filteredEmpleadosCI" [value]="empleado">
+                        {{ empleado.numdocumento }} - {{ empleado.nombre_completo }}
+                    </mat-option>
+                </mat-autocomplete>
             </mat-form-field>
 
             <mat-form-field class="w-full">

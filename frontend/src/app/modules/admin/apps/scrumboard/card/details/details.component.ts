@@ -108,6 +108,10 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
     canSelectTecnico: boolean = true;
     showEquiposDropdown = false;
     loading = false;
+    empleadosCargados: any[] = [];
+    empleadosCargadosCI: any[] = [];
+    filteredEmpleados: any[] = [];
+    filteredEmpleadosCI: any[] = [];
 
     @ViewChild('searchInput') searchInput: ElementRef;
 
@@ -1059,5 +1063,208 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
             console.error('Error al imprimir el PDF:', error);
         }
     }
+
+    buscarEmpleados(query: string): void {
+        const queryLimpia = query.trim();
+
+        if (queryLimpia.length > 2) {
+            // Primero buscar en los empleados ya cargados
+            const empleadosFiltrados = this.empleadosCargados.filter(emp => 
+                emp.nombre_completo.toLowerCase().includes(queryLimpia.toLowerCase())
+            );
+
+            if (empleadosFiltrados.length > 0) {
+                this.filteredEmpleados = empleadosFiltrados;
+                this._changeDetectorRef.markForCheck();
+            } else {
+                // Si no hay coincidencias locales, consultar la API
+                this._scrumboardService.buscarEmpleados(queryLimpia).pipe(
+                    debounceTime(300)
+                ).subscribe({
+                    next: (data) => {
+                        if (data && Array.isArray(data)) {
+                            const nuevosEmpleados = data.map(empleado => ({
+                                id: empleado.id || parseInt(empleado.nro_item) || 0,
+                                nombre_completo: empleado.nombre_completo.trim(),
+                                numdocumento: empleado.numdocumento,
+                                cargo: empleado.cargo,
+                                tipo_contrato: empleado.tipo_contrato,
+                                unidad: empleado.unidad,
+                                telefono: empleado.telefono,
+                                telefono_coorp: empleado.telefono_coorp
+                            }));
+
+                            // Agregar los nuevos empleados al cache local
+                            nuevosEmpleados.forEach(emp => {
+                                if (!this.empleadosCargados.some(e => e.id === emp.id)) {
+                                    this.empleadosCargados.push(emp);
+                                }
+                            });
+
+                            this.filteredEmpleados = nuevosEmpleados;
+                            this._changeDetectorRef.markForCheck();
+                        }
+                    },
+                    error: (error) => {
+                        console.error('Error al buscar empleados:', error);
+                        this.filteredEmpleados = [];
+                        this._changeDetectorRef.markForCheck();
+                    }
+                });
+            }
+        } else {
+            this.filteredEmpleados = [];
+        }
+    }
+
+    buscarEmpleadosPorCI(ci: string): void {
+        const ciLimpio = ci.trim();
+
+        if (ciLimpio.length > 2) {
+            // Primero buscar en los empleados ya cargados
+            const empleadosFiltrados = this.empleadosCargadosCI.filter(emp => 
+                emp.numdocumento.includes(ciLimpio)
+            );
+
+            if (empleadosFiltrados.length > 0) {
+                this.filteredEmpleadosCI = empleadosFiltrados;
+                this._changeDetectorRef.markForCheck();
+            } else {
+                // Si no hay coincidencias locales, consultar la API
+                this._scrumboardService.buscarEmpleadosPorCI(ciLimpio).pipe(
+                    debounceTime(300)
+                ).subscribe({
+                    next: (data) => {
+                        if (data && Array.isArray(data)) {
+                            const nuevosEmpleados = data.map(empleado => ({
+                                id: empleado.id || parseInt(empleado.nro_item) || 0,
+                                nombre_completo: empleado.nombre_completo.trim(),
+                                numdocumento: empleado.numdocumento,
+                                cargo: empleado.cargo,
+                                tipo_contrato: empleado.tipo_contrato,
+                                unidad: empleado.unidad,
+                                telefono: empleado.telefono,
+                                telefono_coorp: empleado.telefono_coorp
+                            }));
+
+                            // Agregar los nuevos empleados al cache local
+                            nuevosEmpleados.forEach(emp => {
+                                if (!this.empleadosCargadosCI.some(e => e.id === emp.id)) {
+                                    this.empleadosCargadosCI.push(emp);
+                                }
+                            });
+
+                            this.filteredEmpleadosCI = nuevosEmpleados;
+                            this._changeDetectorRef.markForCheck();
+                        }
+                    },
+                    error: (error) => {
+                        console.error('Error al buscar empleados por CI:', error);
+                        this.filteredEmpleadosCI = [];
+                        this._changeDetectorRef.markForCheck();
+                    }
+                });
+            }
+        } else {
+            this.filteredEmpleadosCI = [];
+        }
+    }
+
+    onEmpleadoSelected(event: any): void {
+        const empleadoSeleccionado = event.option.value;
+        
+        if (!empleadoSeleccionado) {
+            return;
+        }
+
+        // Actualizar el formulario con los datos del empleado
+        this.cardForm.patchValue({
+            solicitante: empleadoSeleccionado.nombre_completo || " ",
+            carnet: empleadoSeleccionado.numdocumento || " ",
+            cargoSolicitante: empleadoSeleccionado.cargo || " ",
+            tipoSolicitante: empleadoSeleccionado.tipo_contrato || " ",
+            oficina: empleadoSeleccionado.unidad || " ",
+            telefono: empleadoSeleccionado.telefono_coorp || empleadoSeleccionado.telefono || " "
+        });
+
+        // Forzar detección de cambios
+        this._changeDetectorRef.detectChanges();
+    }
+
+    buscarPorCI(): void {
+        const ci = this.cardForm.get('carnet').value?.trim() || '';
+
+        if (!ci) {
+            this._snackBar.open('Por favor ingrese un número de CI', 'Cerrar', {
+                duration: 3000,
+                horizontalPosition: 'center',
+                verticalPosition: 'bottom'
+            });
+            return;
+        }
+
+        this._scrumboardService.buscarEmpleadosPorCI(ci).subscribe({
+            next: (response) => {
+                if (response && response.length > 0) {
+                    const empleado = response[0];
+
+                    // Construir nombre completo desde los componentes individuales
+                    const nombreCompleto = [
+                        empleado.paterno || '',
+                        empleado.materno || '',
+                        empleado.nombre || '',
+                        empleado.otro_nombre || ''
+                    ].filter(Boolean).join(' ').trim();
+
+                    // Actualizar el formulario
+                    this.cardForm.patchValue({
+                        solicitante: nombreCompleto || empleado.empleado || " ",
+                        carnet: empleado.ci || ci,
+                        cargoSolicitante: empleado.cargo || " ",
+                        tipoSolicitante: empleado.tipocontrato || " ",
+                        oficina: empleado.unidad || " ",
+                        telefono: empleado.telefono || empleado.telefono_coorp || " "
+                    });
+                    
+                    // Forzar detección de cambios
+                    this._changeDetectorRef.detectChanges();
+
+                    this._snackBar.open('Empleado encontrado', 'Cerrar', {
+                        duration: 3000,
+                        panelClass: ['success-snackbar'],
+                        horizontalPosition: 'center',
+                        verticalPosition: 'bottom'
+                    });
+                } else {
+                    this._snackBar.open('No se encontró ningún empleado con ese CI', 'Cerrar', {
+                        duration: 3000,
+                        panelClass: ['error-snackbar'],
+                        horizontalPosition: 'center',
+                        verticalPosition: 'bottom'
+                    });
+                }
+            },
+            error: (error) => {
+                console.error('Error al buscar empleado:', error);
+                this._snackBar.open('Error al buscar empleado', 'Cerrar', {
+                    duration: 3000,
+                    panelClass: ['error-snackbar'],
+                    horizontalPosition: 'center',
+                    verticalPosition: 'bottom'
+                });
+            }
+        });
+    }
+
+    displayFnEmpleado = (empleado: any): string => {
+        if (!empleado) {
+            return '';
+        }
+        if (typeof empleado === 'string') {
+            return empleado;
+        }
+        // Mostrar CI o nombre según el campo que se está usando
+        return empleado.numdocumento || empleado.nombre_completo || '';
+    };
 }
 
