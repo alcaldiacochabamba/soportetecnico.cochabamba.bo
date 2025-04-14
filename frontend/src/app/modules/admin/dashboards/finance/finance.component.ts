@@ -23,6 +23,13 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { environment } from 'environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef } from '@angular/core';
+import { 
+    DateAdapter, 
+    MAT_DATE_FORMATS, 
+    MAT_DATE_LOCALE 
+} from '@angular/material/core';
+import { NativeDateAdapter } from '@angular/material/core';
+import { Injectable } from '@angular/core';
 
 // Registrar el plugin
 Chart.register(ChartDataLabels);
@@ -48,6 +55,39 @@ interface jsPDFWithPlugin extends jsPDF {
     internal: any;
 }
 
+// Configuración de formatos de fecha
+export const MY_DATE_FORMATS = {
+    parse: {
+        dateInput: 'DD/MM/YYYY',
+    },
+    display: {
+        dateInput: 'DD/MM/YYYY',
+        monthYearLabel: 'MMM YYYY',
+        dateA11yLabel: 'LL',
+        monthDayA11yLabel: 'DD MMMM',
+    },
+};
+
+// Adaptador personalizado para fechas en español
+@Injectable()
+export class CustomDateAdapter extends NativeDateAdapter {
+    override getFirstDayOfWeek(): number {
+        return 1; // Lunes como primer día de la semana
+    }
+
+    override getDayOfWeekNames(style: 'long' | 'short' | 'narrow'): string[] {
+        return style === 'long' 
+            ? ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+            : ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    }
+
+    override getMonthNames(style: 'long' | 'short' | 'narrow'): string[] {
+        return style === 'long'
+            ? ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+            : ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    }
+}
+
 @Component({
     selector: 'finance',
     templateUrl: './finance.component.html',
@@ -66,6 +106,11 @@ interface jsPDFWithPlugin extends jsPDF {
         MatIconModule,
         MatTooltipModule
     ],
+    providers: [
+        { provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS },
+        { provide: MAT_DATE_LOCALE, useValue: 'es-BO' },
+        { provide: DateAdapter, useClass: CustomDateAdapter }
+    ]
 })
 export class FinanceComponent implements OnInit, OnDestroy, AfterViewInit {
     @ViewChild(MatPaginator) paginator: MatPaginator;
