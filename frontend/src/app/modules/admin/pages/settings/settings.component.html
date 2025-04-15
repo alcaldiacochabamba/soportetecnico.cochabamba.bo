@@ -96,6 +96,10 @@
                              <!-- <settings-team></settings-team> -->
                             <settings-team (panelChanged)="onPanelChanged($event)"></settings-team>
                         </ng-container>
+                        <!-- Plan Billing -->
+                        <ng-container *ngSwitchCase="'plan-billing'">
+                            <settings-plan-billing></settings-plan-billing>
+                        </ng-container>
                     </ng-container>
                 </div>
 

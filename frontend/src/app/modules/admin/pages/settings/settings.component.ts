@@ -73,16 +73,24 @@ export class SettingsComponent implements OnInit, OnDestroy
                 title      : 'Seguridad',
                 description: 'Gestiona tu contraseña y las preferencias de verificación en dos pasos',
             },
+            
         ];
 
         // Agregar panel de equipo para roles administrativos
         if (role === 1 || role === 2) {
-            basePanels.push({
+            basePanels.push(
+            {
+                id         : 'plan-billing',
+                icon       : 'heroicons_outline:squares-2x2',
+                title      : 'Tipos de Hardware',
+                description: 'Gestiona tus categorias de hardware al momento de registrar tu usuario',
+            },{
                 id         : 'team',
                 icon       : 'heroicons_outline:user-group',
                 title      : 'Equipo',
                 description: 'Gestiona tu equipo y los miembros',
-            });
+            }
+        );
         }
 
         this.panels = basePanels;

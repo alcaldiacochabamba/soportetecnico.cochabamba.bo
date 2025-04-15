@@ -1775,10 +1775,12 @@ updateEquipment434(equipos_id: number, equipment: InventoryEquipment): Observabl
             map((response) => {
                 if (response?.data?.data) {
                     // Mapear los datos para extraer `descripcion` y `tipos_id`
-                    return response.data.data.map((tipo: any) => ({
-                        descripcion: tipo.tipos_id.descripcion?.trim() || '',
-                        tipos_id: tipo.tipos_id.tipos_id || 0,
-                    }));
+                    return response.data.data
+                        .filter((tipo: any) => tipo.tipos_id.estado === 1) // Filtrar solo tipos activos
+                        .map((tipo: any) => ({
+                            descripcion: tipo.tipos_id.descripcion?.trim() || '',
+                            tipos_id: tipo.tipos_id.tipos_id || 0,
+                        }));
                     
                 } else {
                     console.warn('Respuesta inesperada de la API:', response);
@@ -1794,10 +1796,10 @@ updateEquipment434(equipos_id: number, equipment: InventoryEquipment): Observabl
     getTipoById(tiposId: number): Observable<{ descripcion: string }> {
         return this._httpClient.get<any>(`${this.baseUrl}/type/${tiposId}`).pipe(
             map((response) => {
-                if (response?.data?.descripcion) {
+                if (response?.data?.descripcion && response.data.estado === 1) {
                     return { descripcion: response.data.descripcion.trim() };
                 } else {
-                    throw new Error('No se encontró el tipo con el ID especificado.');
+                    throw new Error('No se encontró el tipo con el ID especificado o el tipo está inactivo.');
                 }
             }),
             catchError((err) => {
