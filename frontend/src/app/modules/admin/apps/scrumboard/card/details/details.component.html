@@ -95,9 +95,9 @@
 
             <mat-form-field class="w-full">
                 <mat-label>Fecha de Registro</mat-label>
-                <input matInput [matDatepicker]="pickerRegistro" formControlName="fechaRegistro">
-                <mat-datepicker-toggle matSuffix [for]="pickerRegistro"></mat-datepicker-toggle>
-                <mat-datepicker #pickerRegistro></mat-datepicker>
+                <input matInput [matDatepicker]="pickerRegistro" formControlName="fechaRegistro" readonly>
+                <mat-datepicker-toggle matSuffix [for]="pickerRegistro" [disabled]="true"></mat-datepicker-toggle>
+                <mat-datepicker #pickerRegistro disabled="true"></mat-datepicker>
             </mat-form-field>
 
             <mat-form-field class="w-full">

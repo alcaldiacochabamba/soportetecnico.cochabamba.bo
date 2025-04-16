@@ -301,7 +301,7 @@ export class ScrumboardService {
     /**
      * Actualizar estado del servicio
      */
-    updateServiceStatus(serviceId: string, newStatus: EstadoServicio): Observable<Card> {
+    updateServiceStatus2(serviceId: string, newStatus: EstadoServicio): Observable<Card> {
         console.log(`Iniciando actualización de estado para servicio ${serviceId} a ${newStatus}`);
         const nullToSpace = (value: any, field?: string) => {
             if (value === null || value === undefined || value === '' || value === 'null' || (field === 'tecnicoAsignado' && value === 0)) {
@@ -387,6 +387,108 @@ export class ScrumboardService {
                                                 estado: newStatus, // Actualizar el estado de la tarjeta
                                                 fechaInicio: fechaInicio, // Asegurar que se mantenga la fecha de inicio
                                                 fechaTerminado: fechaTerminado // Asegurar que se mantenga la fecha de término
+                                            };
+                                        }
+                                        return card; // Retornar la tarjeta sin cambios si no es la que se actualiza
+                                    });
+                                    
+                                    // Actualizar el estado de las tarjetas en el BehaviorSubject
+                                    this.cards$.next(updatedCards);
+
+                                    // Recargar la lista específica después de un breve delay
+                                    setTimeout(() => {
+                                        this.getCardsByStatus(
+                                            updateData.tipo,
+                                            newStatus,
+                                            updateData.tecnicoAsignado?.toString(),
+                                            1,
+                                            100
+                                        ).subscribe();
+                                    }, 100);
+                                },
+                                error: (error) => console.error('Error en PUT:', {
+                                    status: error.status,
+                                    message: error.message,
+                                    error: error,
+                                    url: `${this.apiUrl}/service/${serviceId}`,
+                                    data: updateData
+                                })
+                            }),
+                            catchError(error => {
+                                console.error('Error capturado en PUT:', error);
+                                throw error;
+                            })
+                        );
+                }),
+                catchError(error => {
+                    console.error('Error capturado en pipeline principal:', error);
+                    throw error;
+                })
+            );
+    }
+
+    /**
+     * Actualizar estado del servicio sin modificar fechas
+     */
+    updateServiceStatus(serviceId: string, newStatus: EstadoServicio): Observable<Card> {
+        console.log(`Iniciando actualización de estado para servicio ${serviceId} a ${newStatus}`);
+        const nullToSpace = (value: any, field?: string) => {
+            if (value === null || value === undefined || value === '' || value === 'null' || (field === 'tecnicoAsignado' && value === 0)) {
+                // Retornar null para equipo y tecnicoAsignado, espacio para otros campos
+                return (field === 'equipo' || field === 'tecnicoAsignado') ? null : " ";
+            }
+            return value;
+        };
+        
+        return this._httpClient.get<any>(`${this.apiUrl}/service/${serviceId}`)
+            .pipe(
+                tap({
+                    next: (response) => console.log('GET response:', response),
+                    error: (error) => console.error('Error en GET inicial:', error)
+                }),
+                switchMap(response => {
+                    if (!response?.data) {
+                        console.error('Respuesta GET inválida:', response);
+                        throw new Error('Respuesta inválida del servidor');
+                    }
+
+                    const currentService = response.data;
+                    console.log('Servicio actual obtenido:', currentService);
+
+                    // Procesar todos los campos para evitar nulls
+                    const updateData = {
+                        ...Object.keys(currentService).reduce((acc, key) => {
+                            acc[key] = nullToSpace(currentService[key], key);
+                            return acc;
+                        }, {}),
+                        estado: newStatus,
+                        tipo: currentService.tipo,
+                        tecnicoAsignado: currentService.tecnicoAsignado,
+                        // Mantener las fechas originales sin modificación
+                        fechaInicio: currentService.fechaInicio,
+                        fechaTerminado: currentService.fechaTerminado
+                    };
+                    console.log('URL de actualización:', `${this.apiUrl}/service/${serviceId}`);
+                    console.log('Datos a actualizar:', updateData);
+                    
+                    return this._httpClient.put<Card>(`${this.apiUrl}/service/${serviceId}`, updateData)
+                        .pipe(
+                            tap({
+                                next: (response) => {
+                                    // Imprimir en consola la respuesta de la actualización exitosa
+                                    console.log('Actualización exitosa:', response);
+                                    
+                                    // Obtener la lista actual de tarjetas
+                                    const currentCards = this.cards$.value;
+                                    
+                                    // Mapear las tarjetas actuales para actualizar solo la tarjeta modificada
+                                    const updatedCards = currentCards.map(card => {
+                                        // Verificar si la tarjeta actual es la que se está actualizando
+                                        if (card.id === serviceId) {
+                                            return {
+                                                ...card, // Mantener los datos existentes de la tarjeta
+                                                ...updateData, // Incorporar los nuevos datos actualizados
+                                                estado: newStatus // Actualizar el estado de la tarjeta
                                             };
                                         }
                                         return card; // Retornar la tarjeta sin cambios si no es la que se actualiza
