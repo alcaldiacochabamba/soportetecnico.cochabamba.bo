@@ -112,6 +112,12 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
     empleadosCargadosCI: any[] = [];
     filteredEmpleados: any[] = [];
     filteredEmpleadosCI: any[] = [];
+    showTecnicosEgresoDropdown = false;
+    filteredTecnicosEgreso: any[] = [];
+    responsablesCargados: any[] = [];
+    responsablesCargadosCI: any[] = [];
+    filteredResponsablesEgreso: any[] = [];
+    filteredResponsablesEgresoCI: any[] = [];
 
     @ViewChild('searchInput') searchInput: ElementRef;
 
@@ -227,7 +233,15 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
                 observaciones: this.data.card.observacionesProblema || '',
                 informe: this.data.card.informe || '',
                 equipo: this.data.card.codigoBienes || '',
-                tecnicoAsignado: this.data.card.tecnicoAsignado
+                tecnicoAsignado: this.data.card.tecnicoAsignado,
+                nombreResponsableEgreso: this.data.card.nombreResponsableEgreso || '',
+                cargoResponsableEgreso: this.data.card.cargoResponsableEgreso || '',
+                telefonoResponsableEgreso: this.data.card.telefonoResponsableEgreso || '',
+                tipoResponsableEgreso: this.data.card.tipoResponsableEgreso || '',
+                oficinaResponsableEgreso: this.data.card.oficinaResponsableEgreso || '',
+                ciResponsableEgreso: this.data.card.ciResponsableEgreso || '',
+                fechaEgreso: this.data.card.fechaEgreso || null,
+                tecnicoEgreso: this.data.card.tecnicoEgreso || ''
             });
 
             // Si hay un equipo_id, buscar su código
@@ -361,6 +375,26 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
                     });
             }
         }
+
+        // Si hay un técnico de egreso asignado, mostrar su nombre
+        if (this.data.card?.tecnicoEgreso) {
+            // Verificar si es un ID o un nombre
+            const tecnicoEgreso = this.tecnicos.find(t => 
+                t.id === this.data.card.tecnicoEgreso || 
+                t.nombre === this.data.card.tecnicoEgreso
+            );
+            
+            if (tecnicoEgreso) {
+                this.cardForm.patchValue({
+                    tecnicoEgreso: tecnicoEgreso.nombre
+                });
+            } else {
+                // Si no se encuentra, usar el valor original
+                this.cardForm.patchValue({
+                    tecnicoEgreso: this.data.card.tecnicoEgreso
+                });
+            }
+        }
     }
 
     ngOnDestroy(): void {
@@ -378,33 +412,33 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
         const formData = this.cardForm.getRawValue();
         const updateData = {
             servicios_id: parseInt(this.data.card.id),
-            nombreResponsableEgreso: " edit",
+            nombreResponsableEgreso: formData.nombreResponsableEgreso || "edit",
             cargoSolicitante: formData.cargoSolicitante || " ",
             informe: formData.informe || "SE ACTIVO EL OFFICE",
-            cargoResponsableEgreso: " ",
+            cargoResponsableEgreso: formData.cargoResponsableEgreso || " ",
             oficinaSolicitante: formData.oficina || "SECRETARIA DE DESARROLLO HUMANO",
             fechaRegistro: formData.fechaRegistro || "2020-04-16T12:20:58.420Z",
             equipo: formData.equipo || 1,
             problema: formData.problema || "ACTIVAR OFFICE",
-            telefonoResponsableEgreso: " ",
+            telefonoResponsableEgreso: formData.telefonoResponsableEgreso || " ",
             gestion: 3,
             telefonoSolicitante: formData.telefono || "4460697",
-            tecnicoAsignado: formData.tecnicoAsignado ,
+            tecnicoAsignado: formData.tecnicoAsignado,
             observaciones: formData.observaciones || " ",
-            tipoResponsableEgreso: " ",
+            tipoResponsableEgreso: formData.tipoResponsableEgreso || " ",
             estado: formData.estado || "TERMINADO",
             tipoSolicitante: formData.tipoSolicitante || "INDEFINIDO - ITEM",
             fechaTerminado: formData.fechaTerminado || "2020-04-16T12:20:58.420Z",
-            oficinaResponsableEgreso: " ",
+            oficinaResponsableEgreso: formData.oficinaResponsableEgreso || " ",
             numero: 464,
             fechaInicio: formData.fechaInicio || "2020-04-16T12:20:58.420Z",
-            fechaEgreso: " ",
+            fechaEgreso: formData.fechaEgreso || " ",
             ciSolicitante: formData.carnet || "5676174",
             nombreSolicitante: formData.solicitante || "JASSEL GABRIELA ENCINAS NAVIA",
             tipo: formData.tipoServicio || "ASISTENCIA",
-            tecnicoRegistro: formData.tecnicoRegistro ,
-            tecnicoEgreso: " ",
-            ciResponsableEgreso: " "
+            tecnicoRegistro: formData.tecnicoRegistro,
+            tecnicoEgreso: formData.tecnicoEgreso || " ",
+            ciResponsableEgreso: formData.ciResponsableEgreso || " "
         };
 
         this._scrumboardService.updateService(this.data.card.id, updateData)
@@ -492,11 +526,15 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
         const target = event.target as HTMLElement;
         const isInputClick = target.closest('input') !== null;
         const isTecnicosDropdown = target.closest('.tecnicos-dropdown') !== null;
+        const isTecnicosEgresoDropdown = target.closest('.tecnicos-egreso-dropdown') !== null;
         const isEquiposDropdown = target.closest('.equipos-dropdown') !== null;
         
         if (!isInputClick) {
             if (!isTecnicosDropdown) {
                 this.showTecnicosDropdown = false;
+            }
+            if (!isTecnicosEgresoDropdown) {
+                this.showTecnicosEgresoDropdown = false;
             }
             if (!isEquiposDropdown) {
                 this.showEquiposDropdown = false;
@@ -668,16 +706,19 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
     }
 
     onSearchChange(term: string): void {
-        this.searchTerm = term;
+        // Eliminar espacios al inicio y al final del término
+        const trimmedTerm = term.trim();
+        
+        this.searchTerm = trimmedTerm;
         this.showTecnicosDropdown = true;
         
-        if (!term) {
+        if (!trimmedTerm) {
             this.filteredTecnicos = this.tecnicos;
             return;
         }
 
         this.filteredTecnicos = this.tecnicos.filter(tecnico => 
-            tecnico.nombre.toLowerCase().includes(term.toLowerCase())
+            tecnico.nombre.toLowerCase().includes(trimmedTerm.toLowerCase())
         );
         
         this._changeDetectorRef.detectChanges();
@@ -1265,6 +1306,281 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
         }
         // Mostrar CI o nombre según el campo que se está usando
         return empleado.numdocumento || empleado.nombre_completo || '';
+    };
+
+    onSearchTecnicoEgresoChange(term: string): void {
+        // Eliminar espacios al inicio y al final del término
+        const trimmedTerm = term.trim();
+        
+        this.searchTerm = trimmedTerm;
+        this.showTecnicosEgresoDropdown = true;
+        
+        if (!trimmedTerm) {
+            this.filteredTecnicosEgreso = this.tecnicos;
+            return;
+        }
+
+        this.filteredTecnicosEgreso = this.tecnicos.filter(tecnico => 
+            tecnico.nombre.toLowerCase().includes(trimmedTerm.toLowerCase())
+        );
+        
+        this._changeDetectorRef.detectChanges();
+    }
+
+    getSelectedTecnicoEgresoDisplay(): string {
+        // Buscar por nombre en lugar de ID
+        const selectedTecnicoNombre = this.cardForm.get('tecnicoEgreso').value;
+        return selectedTecnicoNombre || 'Sin asignar';
+    }
+
+    onTecnicoEgresoFilterChange(tecnicoId: string): void {
+        // Encontrar el técnico seleccionado
+        const selectedTecnico = this.tecnicos.find(t => t.id === tecnicoId);
+        
+        if (!selectedTecnico) {
+            console.error('Técnico no encontrado');
+            return;
+        }
+
+        // Actualizar el valor en el formulario
+        this.cardForm.patchValue({
+            tecnicoEgreso: selectedTecnico.nombre
+        });
+
+        const updateData = {
+            ...this.cardForm.getRawValue(),
+            tecnicoEgreso: selectedTecnico.nombre
+        };
+
+        this._scrumboardService.updateService(this.data.card.id, updateData)
+            .subscribe({
+                next: () => {
+                    this._snackBar.open('Técnico de egreso asignado correctamente', 'Cerrar', {
+                        duration: 3000,
+                        horizontalPosition: 'end',
+                        verticalPosition: 'top',
+                        panelClass: ['success-snackbar']
+                    });
+                    this._scrumboardService.notifyCardUpdate('update', Number(this.data.card.id), this.data.card.listId);
+                },
+                error: (error) => {
+                    console.error('Error al asignar técnico de egreso:', error);
+                    this._snackBar.open('Error al asignar técnico de egreso', 'Cerrar', {
+                        duration: 3000,
+                        horizontalPosition: 'end',
+                        verticalPosition: 'top',
+                        panelClass: ['error-snackbar']
+                    });
+                }
+            });
+    }
+
+    // Método para buscar responsables de egreso
+    buscarResponsablesEgreso(query: string): void {
+        const queryLimpia = query.trim();
+
+        if (queryLimpia.length > 2) {
+            // Primero buscar en los responsables ya cargados
+            const responsablesFiltrados = this.responsablesCargados.filter(resp => 
+                resp.nombre_completo.toLowerCase().includes(queryLimpia.toLowerCase())
+            );
+
+            if (responsablesFiltrados.length > 0) {
+                this.filteredResponsablesEgreso = responsablesFiltrados;
+                this._changeDetectorRef.markForCheck();
+            } else {
+                // Si no hay coincidencias locales, consultar la API
+                this._scrumboardService.buscarEmpleados(queryLimpia).pipe(
+                    debounceTime(300)
+                ).subscribe({
+                    next: (data) => {
+                        if (data && Array.isArray(data)) {
+                            const nuevosResponsables = data.map(responsable => ({
+                                id: responsable.id || parseInt(responsable.nro_item) || 0,
+                                nombre_completo: responsable.nombre_completo.trim(),
+                                numdocumento: responsable.numdocumento,
+                                cargo: responsable.cargo,
+                                tipo_contrato: responsable.tipo_contrato,
+                                unidad: responsable.unidad,
+                                telefono: responsable.telefono,
+                                telefono_coorp: responsable.telefono_coorp
+                            }));
+
+                            // Agregar los nuevos responsables al cache local
+                            nuevosResponsables.forEach(resp => {
+                                if (!this.responsablesCargados.some(r => r.id === resp.id)) {
+                                    this.responsablesCargados.push(resp);
+                                }
+                            });
+
+                            this.filteredResponsablesEgreso = nuevosResponsables;
+                            this._changeDetectorRef.markForCheck();
+                        }
+                    },
+                    error: (error) => {
+                        console.error('Error al buscar responsables de egreso:', error);
+                        this.filteredResponsablesEgreso = [];
+                        this._changeDetectorRef.markForCheck();
+                    }
+                });
+            }
+        } else {
+            this.filteredResponsablesEgreso = [];
+        }
+    }
+
+    // Método para buscar responsables de egreso por CI
+    buscarResponsableEgresoPorCI(): void {
+        const ci = this.cardForm.get('ciResponsableEgreso').value?.trim() || '';
+
+        if (!ci) {
+            this._snackBar.open('Por favor ingrese un número de CI', 'Cerrar', {
+                duration: 3000,
+                horizontalPosition: 'center',
+                verticalPosition: 'bottom'
+            });
+            return;
+        }
+
+        this._scrumboardService.buscarEmpleadosPorCI(ci).subscribe({
+            next: (response) => {
+                if (response && response.length > 0) {
+                    const responsable = response[0];
+
+                    // Construir nombre completo desde los componentes individuales
+                    const nombreCompleto = [
+                        responsable.paterno || '',
+                        responsable.materno || '',
+                        responsable.nombre || '',
+                        responsable.otro_nombre || ''
+                    ].filter(Boolean).join(' ').trim();
+
+                    // Actualizar el formulario
+                    this.cardForm.patchValue({
+                        nombreResponsableEgreso: nombreCompleto || responsable.empleado || " ",
+                        ciResponsableEgreso: responsable.ci || ci,
+                        cargoResponsableEgreso: responsable.cargo || " ",
+                        tipoResponsableEgreso: responsable.tipocontrato || " ",
+                        oficinaResponsableEgreso: responsable.unidad || " ",
+                        telefonoResponsableEgreso: responsable.telefono || responsable.telefono_coorp || " "
+                    });
+                    
+                    // Forzar detección de cambios
+                    this._changeDetectorRef.detectChanges();
+
+                    this._snackBar.open('Responsable de egreso encontrado', 'Cerrar', {
+                        duration: 3000,
+                        panelClass: ['success-snackbar'],
+                        horizontalPosition: 'center',
+                        verticalPosition: 'bottom'
+                    });
+                } else {
+                    this._snackBar.open('No se encontró ningún responsable con ese CI', 'Cerrar', {
+                        duration: 3000,
+                        panelClass: ['error-snackbar'],
+                        horizontalPosition: 'center',
+                        verticalPosition: 'bottom'
+                    });
+                }
+            },
+            error: (error) => {
+                console.error('Error al buscar responsable de egreso:', error);
+                this._snackBar.open('Error al buscar responsable de egreso', 'Cerrar', {
+                    duration: 3000,
+                    panelClass: ['error-snackbar'],
+                    horizontalPosition: 'center',
+                    verticalPosition: 'bottom'
+                });
+            }
+        });
+    }
+
+    // Método para seleccionar un responsable de egreso
+    onResponsableEgresoSelected(event: any): void {
+        const responsableSeleccionado = event.option.value;
+        
+        if (!responsableSeleccionado) {
+            return;
+        }
+
+        // Actualizar el formulario con los datos del responsable
+        this.cardForm.patchValue({
+            nombreResponsableEgreso: responsableSeleccionado.nombre_completo || " ",
+            ciResponsableEgreso: responsableSeleccionado.numdocumento || " ",
+            cargoResponsableEgreso: responsableSeleccionado.cargo || " ",
+            tipoResponsableEgreso: responsableSeleccionado.tipo_contrato || " ",
+            oficinaResponsableEgreso: responsableSeleccionado.unidad || " ",
+            telefonoResponsableEgreso: responsableSeleccionado.telefono_coorp || responsableSeleccionado.telefono || " "
+        });
+
+        // Forzar detección de cambios
+        this._changeDetectorRef.detectChanges();
+    }
+
+    // Método para buscar responsables de egreso por CI en el dropdown
+    buscarResponsablesEgresoPorCI(ci: string): void {
+        const ciLimpio = ci.trim();
+
+        if (ciLimpio.length > 2) {
+            // Primero buscar en los responsables ya cargados
+            const responsablesFiltrados = this.responsablesCargadosCI.filter(resp => 
+                resp.numdocumento.includes(ciLimpio)
+            );
+
+            if (responsablesFiltrados.length > 0) {
+                this.filteredResponsablesEgresoCI = responsablesFiltrados;
+                this._changeDetectorRef.markForCheck();
+            } else {
+                // Si no hay coincidencias locales, consultar la API
+                this._scrumboardService.buscarEmpleadosPorCI(ciLimpio).pipe(
+                    debounceTime(300)
+                ).subscribe({
+                    next: (data) => {
+                        if (data && Array.isArray(data)) {
+                            const nuevosResponsables = data.map(responsable => ({
+                                id: responsable.id || parseInt(responsable.nro_item) || 0,
+                                nombre_completo: responsable.nombre_completo.trim(),
+                                numdocumento: responsable.numdocumento,
+                                cargo: responsable.cargo,
+                                tipo_contrato: responsable.tipo_contrato,
+                                unidad: responsable.unidad,
+                                telefono: responsable.telefono,
+                                telefono_coorp: responsable.telefono_coorp
+                            }));
+
+                            // Agregar los nuevos responsables al cache local
+                            nuevosResponsables.forEach(resp => {
+                                if (!this.responsablesCargadosCI.some(r => r.id === resp.id)) {
+                                    this.responsablesCargadosCI.push(resp);
+                                }
+                            });
+
+                            this.filteredResponsablesEgresoCI = nuevosResponsables;
+                            this._changeDetectorRef.markForCheck();
+                        }
+                    },
+                    error: (error) => {
+                        console.error('Error al buscar responsables de egreso por CI:', error);
+                        this.filteredResponsablesEgresoCI = [];
+                        this._changeDetectorRef.markForCheck();
+                    }
+                });
+            }
+        } else {
+            this.filteredResponsablesEgresoCI = [];
+        }
+    }
+
+    // Método para mostrar el nombre del responsable en el autocomplete
+    displayFnResponsableEgreso = (responsable: any): string => {
+        if (!responsable) {
+            return '';
+        }
+        if (typeof responsable === 'string') {
+            return responsable;
+        }
+        // Mostrar CI o nombre según el campo que se está usando
+        return responsable.numdocumento || responsable.nombre_completo || '';
     };
 }
 

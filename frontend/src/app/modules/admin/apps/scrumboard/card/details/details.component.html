@@ -127,17 +127,10 @@
                     <mat-icon matSuffix class="icon-size-5" *ngIf="canSelectTecnico">search</mat-icon>
                 </mat-form-field>
 
-                <!-- Mensaje de estado del técnico -->
-                <div *ngIf="getTecnicoEstado() as estado" 
-                     [class]="estado.color"
-                     class="text-sm mt-1 ml-1">
-                    {{ estado.message }}
-                </div>
-
                 <!-- Dropdown para técnicos -->
                 <div *ngIf="showTecnicosDropdown && filteredTecnicos.length > 0 && canSelectTecnico"
                      class="tecnicos-dropdown dropdown-container absolute left-0 right-0 z-[9999] mt-1 shadow-lg overflow-hidden border rounded-md bg-white dark:bg-gray-800"
-                     style="backdrop-filter: none; -webkit-backdrop-filter: none;">
+                     style="top: 100%; backdrop-filter: none; -webkit-backdrop-filter: none;">
                     <div class="max-h-64 overflow-y-auto">
                         <div *ngFor="let tecnico of filteredTecnicos"
                              class="px-4 py-2 cursor-pointer transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -150,6 +143,13 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Mensaje de estado del técnico -->
+            <div *ngIf="getTecnicoEstado() as estado" 
+                 [class]="estado.color"
+                 class="text-sm mt-1 ml-1">
+                {{ estado.message }}
             </div>
         </div>
 
@@ -237,6 +237,99 @@
                     </mat-card-content>
                 </mat-card>
             </div>
+        </div>
+
+        <!-- Información de Egreso (Solo visible cuando el estado es TERMINADO) -->
+        <div *ngIf="cardForm.get('estado').value === 'TERMINADO'" class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8">
+            
+
+            <div class="relative w-full">
+                <mat-form-field class="w-full">
+                    <mat-label>Técnico Egreso</mat-label>
+                    <input matInput
+                           [value]="getSelectedTecnicoEgresoDisplay()"
+                           (input)="onSearchTecnicoEgresoChange($event.target.value)"
+                           (focus)="showTecnicosEgresoDropdown = true"
+                           [placeholder]="'Buscar técnico de egreso...'"
+                           [readonly]="!canSelectTecnico">
+                    <mat-icon matSuffix class="icon-size-5" *ngIf="canSelectTecnico">search</mat-icon>
+                </mat-form-field>
+
+                <!-- Dropdown para técnicos de egreso -->
+                <div *ngIf="showTecnicosEgresoDropdown && filteredTecnicosEgreso.length > 0 && canSelectTecnico"
+                     class="tecnicos-egreso-dropdown dropdown-container absolute left-0 right-0 z-[9999] mt-1 shadow-lg overflow-hidden border rounded-md bg-white dark:bg-gray-800"
+                     style="top: 100%; backdrop-filter: none; -webkit-backdrop-filter: none;">
+                    <div class="max-h-64 overflow-y-auto">
+                        <div *ngFor="let tecnico of filteredTecnicosEgreso"
+                             class="px-4 py-2 cursor-pointer transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-700"
+                             [ngClass]="{
+                                 'text-gray-900 dark:text-gray-100': true,
+                                 'bg-white dark:bg-gray-800': true
+                             }"
+                             (click)="onTecnicoEgresoFilterChange(tecnico.id); showTecnicosEgresoDropdown = false">
+                            {{ tecnico.nombre }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <mat-form-field class="w-full">
+                <mat-label>Fecha Egreso</mat-label>
+                <input matInput [matDatepicker]="pickerEgreso" formControlName="fechaEgreso">
+                <mat-datepicker-toggle matSuffix [for]="pickerEgreso"></mat-datepicker-toggle>
+                <mat-datepicker #pickerEgreso></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field class="w-full">
+                <mat-label>Nombre Responsable Egreso</mat-label>
+                <input matInput 
+                       formControlName="nombreResponsableEgreso"
+                       [matAutocomplete]="responsableEgresoAuto"
+                       (input)="buscarResponsablesEgreso($event.target.value)">
+                <mat-autocomplete #responsableEgresoAuto="matAutocomplete" 
+                                  (optionSelected)="onResponsableEgresoSelected($event)">
+                    <mat-option *ngFor="let responsable of filteredResponsablesEgreso" [value]="responsable">
+                        {{ responsable.nombre_completo }} ({{ responsable.numdocumento }})
+                    </mat-option>
+                </mat-autocomplete>
+            </mat-form-field>
+
+            <mat-form-field class="w-full">
+                <mat-label>Cargo Responsable Egreso</mat-label>
+                <input matInput formControlName="cargoResponsableEgreso">
+            </mat-form-field>
+
+            <mat-form-field class="w-full">
+                <mat-label>CI Responsable Egreso</mat-label>
+                <input matInput 
+                       formControlName="ciResponsableEgreso"
+                       [matAutocomplete]="responsableEgresoCIAuto">
+                <button matSuffix 
+                        mat-icon-button 
+                        (click)="buscarResponsableEgresoPorCI()"
+                        matTooltip="Buscar por CI">
+                    <mat-icon>search</mat-icon>
+                </button>
+                <mat-autocomplete #responsableEgresoCIAuto="matAutocomplete">
+                    <mat-option *ngFor="let responsable of filteredResponsablesEgresoCI" [value]="responsable">
+                        {{ responsable.numdocumento }} - {{ responsable.nombre_completo }}
+                    </mat-option>
+                </mat-autocomplete>
+            </mat-form-field>
+
+            <mat-form-field class="w-full">
+                <mat-label>Teléfono Responsable Egreso</mat-label>
+                <input matInput formControlName="telefonoResponsableEgreso">
+            </mat-form-field>
+
+            <mat-form-field class="w-full">
+                <mat-label>Tipo Responsable Egreso</mat-label>
+                <input matInput formControlName="tipoResponsableEgreso">
+            </mat-form-field>
+
+            <mat-form-field class="w-full">
+                <mat-label>Oficina Responsable Egreso</mat-label>
+                <input matInput formControlName="oficinaResponsableEgreso">
+            </mat-form-field>
         </div>
     </form>
 

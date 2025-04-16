@@ -143,7 +143,15 @@ export class ScrumboardService {
             telefonoSolicitante: item.telefonoSolicitante || '',
             listId: '',
             position: 0,
-            tecnicoRegistro: item.tecnicoRegistro || 3
+            tecnicoRegistro: item.tecnicoRegistro || 3,
+            nombreResponsableEgreso: item.nombreResponsableEgreso || '',
+            cargoResponsableEgreso: item.cargoResponsableEgreso || '',
+            telefonoResponsableEgreso: item.telefonoResponsableEgreso || '',
+            tipoResponsableEgreso: item.tipoResponsableEgreso || '',
+            oficinaResponsableEgreso: item.oficinaResponsableEgreso || '',
+            ciResponsableEgreso: item.ciResponsableEgreso || '',
+            fechaEgreso: this.formatDate(item.fechaEgreso),
+            tecnicoEgreso: item.tecnicoEgreso || ''
         } as Card;
     }
 

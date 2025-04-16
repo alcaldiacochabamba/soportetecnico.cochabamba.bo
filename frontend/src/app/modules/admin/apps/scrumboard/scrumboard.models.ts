@@ -37,6 +37,15 @@ export interface Card {
     tipoHardware?: string;
     descripcion?: string;
     tecnicoRegistro: number;
+    
+    cargoResponsableEgreso?: string;
+    ciResponsableEgreso?: string;
+    fechaEgreso?: string;
+    nombreResponsableEgreso?: string;
+    oficinaResponsableEgreso?: string;
+    tecnicoEgreso?: string;
+    telefonoResponsableEgreso?: string;
+    tipoResponsableEgreso?: string;
 }
 
 export enum EstadoServicio {
