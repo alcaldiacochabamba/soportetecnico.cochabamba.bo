@@ -1,5 +1,5 @@
 import { Component, Inject, OnInit, OnDestroy, ChangeDetectorRef, HostListener, ViewChild, ElementRef } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormControl } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormControl, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms'; 
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -36,6 +36,28 @@ export const MY_DATE_FORMATS = {
         monthDayA11yLabel: 'DD MMMM',
     },
 };
+// VALIDACION FECHA DE INICIO Y FECHA TERMINADO 
+export const fechasValidator: ValidatorFn = (formGroup: AbstractControl): ValidationErrors | null => {
+  const fechaInicioCtrl = formGroup.get('fechaInicio');
+  const fechaTerminadoCtrl = formGroup.get('fechaTerminado');
+
+  if (fechaInicioCtrl && fechaTerminadoCtrl) {
+    const fechaInicio = fechaInicioCtrl.value;
+    const fechaTerminado = fechaTerminadoCtrl.value;
+
+    if (fechaInicio && fechaTerminado && new Date(fechaTerminado) < new Date(fechaInicio)) {
+      fechaTerminadoCtrl.setErrors({ fechaInvalida: true }); // 👈 error va directo al control
+      return { fechaInvalida: true };
+    } else {
+      // 👌 limpiar errores si ya es válido
+      if (fechaTerminadoCtrl.hasError('fechaInvalida')) {
+        fechaTerminadoCtrl.setErrors(null);
+      }
+    }
+  }
+  return null;
+};
+
 
 @Injectable()
 export class CustomDateAdapter extends NativeDateAdapter {
@@ -180,7 +202,7 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
 
     ngOnInit(): void {
         // Inicializar el formulario sin validadores inicialmente
-        this.cardForm = this._formBuilder.group({
+                    this.cardForm = this._formBuilder.group({
             solicitante: [''],
             carnet: [''],
             cargoSolicitante: [''],
@@ -209,7 +231,8 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
             fechaEgreso: [''],
             tecnicoEgreso: [''],
             ciResponsableEgreso: ['']
-        });
+            }, { validators: fechasValidator });  // aquí aplicamos el validador
+
 
         // Si no es nuevo, cargar los datos de la tarjeta
         if (!this.data.isNew && this.data.card) {
@@ -243,6 +266,16 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
                 fechaEgreso: this.data.card.fechaEgreso || null,
                 tecnicoEgreso: this.data.card.tecnicoEgreso || ''
             });
+
+            // Forzar ejecución de la validación después del patch
+            this.cardForm.updateValueAndValidity();
+
+            // Marcar touched los campos de fecha para que el error se vea de inmediato
+            this.cardForm.get('fechaInicio')?.markAsTouched();
+            this.cardForm.get('fechaTerminado')?.markAsTouched();
+
+            
+            
 
             // Si hay un equipo_id, buscar su código
             if (this.data.card.codigoBienes) {

@@ -10,47 +10,46 @@ import { catchError, Observable, throwError } from 'rxjs';
  * @param req
  * @param next
  */
-export const authInterceptor = (req: HttpRequest<unknown>, next: HttpHandlerFn): Observable<HttpEvent<unknown>> =>
-{
+export const authInterceptor = (
+    req: HttpRequest<unknown>,
+    next: HttpHandlerFn
+): Observable<HttpEvent<unknown>> => {
     const authService = inject(AuthService);
 
-    // Clone the request object
+    // Listado de endpoints públicos que NO necesitan token
+    const excludedUrls = [
+        '/auth/login',
+        '/auth/forgot-password',
+        '/auth/reset-password'
+    ];
+
+    // Verificar si la URL actual está en la lista de exclusión
+    const isExcluded = excludedUrls.some((url) => req.url.includes(url));
+
     let newReq = req.clone();
 
-    const token = localStorage.getItem('accessToken');
-    console.log('El token es:', token);
-
-
-    // Request
-    //
-    // If the access token didn't expire, add the Authorization header.
-    // We won't add the Authorization header if the access token expired.
-    // This will force the server to return a "401 Unauthorized" response
-    // for the protected API routes which our response interceptor will
-    // catch and delete the access token from the local storage while logging
-    // the user out from the app.
-    if ( authService.accessToken && !AuthUtils.isTokenExpired(authService.accessToken) )
-    {
-        newReq = req.clone({
-            headers: req.headers.set('Authorization', 'Bearer ' + authService.accessToken),
-        });
+    if (!isExcluded) {
+        // Si la ruta no está excluida, añadimos token
+        if (authService.accessToken && !AuthUtils.isTokenExpired(authService.accessToken)) {
+            newReq = req.clone({
+                headers: req.headers.set('Authorization', 'Bearer ' + authService.accessToken),
+            });
+        }
     }
 
     // Response
     return next(newReq).pipe(
-        catchError((error) =>
-        {
+        catchError((error) => {
             // Catch "401 Unauthorized" responses
-            if ( error instanceof HttpErrorResponse && error.status === 401 )
-            {
+            if (error instanceof HttpErrorResponse && error.status === 401) {
                 // Sign out
                 authService.signOut();
 
-                // Reload the app inceptor que es 
+                // Reload the app
                 location.reload();
             }
 
-            return throwError(error);
+            return throwError(() => error);
         }),
     );
 };

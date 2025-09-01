@@ -1328,17 +1328,36 @@ export class InventoryListComponent implements OnInit, AfterViewInit, OnDestroy 
         }
     }
 
-    // Método para formatear fechas en los reportes
-    formatDisplayDate(dateString: string | null | undefined): string {
-        const formattedDate = this.formatDate(dateString);
-        if (!formattedDate) return 'N/A';
+        // Método para formatear fechas en los reportes
+        formatDisplayDate(dateString: string | null | undefined): string {
+        if (!dateString) return 'N/A';
 
         try {
-            return new Date(formattedDate).toLocaleDateString();
+            let fecha: Date;
+
+            if (dateString.includes('/')) {
+            // Caso formato "DD/MM/YYYY"
+            const [day, month, year] = dateString.split('/');
+            fecha = new Date(+year, +month - 1, +day);
+            } else {
+            // Caso formato ISO (ej: "2024-04-15T19:00:08.275Z")
+            fecha = new Date(dateString);
+            }
+
+            // Validar que sea fecha válida
+            if (isNaN(fecha.getTime())) return 'N/A';
+
+            return fecha.toLocaleDateString('es-BO', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+            });
         } catch {
             return 'N/A';
         }
-    }
+        }
+
+
 
     // Modificar otros métodos que usen fechas
     formatDateForApi(date: Date): string {

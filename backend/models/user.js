@@ -14,8 +14,15 @@ module.exports = (sequelize, DataTypes) => {
     usuarios_id: {
       type: DataTypes.INTEGER, // El tipo de dato es INTEGER (ya que es entero, no BIGINT).
       primaryKey: true, // Es la clave primaria.
-      autoIncrement: true // Se incrementa automáticamente.
+      autoIncrement: true , // Se incrementa automáticamente.
+      field: 'usuarios_id'
     },
+    id: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        return this.getDataValue('usuarios_id');
+      }
+       },
     // Campo 'email' que corresponde al correo electrónico del usuario.
     email: {
       type: DataTypes.STRING, // El tipo de dato es STRING (texto).
