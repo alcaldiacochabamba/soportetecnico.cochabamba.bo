@@ -15,35 +15,7 @@
 
         <!-- Información Personal -->
         <div class="space-y-6">
-            <!-- Foto de perfil -->
-            <div class="flex flex-col items-center space-y-4">
-                <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200">
-                    <img *ngIf="imagePreview" [src]="imagePreview" 
-                         class="w-full h-full object-cover"
-                         alt="Foto de perfil">
-                    <div *ngIf="!imagePreview" 
-                         class="w-full h-full flex items-center justify-center bg-gray-100">
-                        <mat-icon class="text-4xl text-gray-400">person</mat-icon>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <button type="button"
-                            mat-flat-button
-                            color="primary"
-                            (click)="fileInput.click()">
-                        <mat-icon class="mr-2">photo_camera</mat-icon>
-                        Subir foto
-                    </button>
-                    <input #fileInput
-                           type="file"
-                           accept="image/*"
-                           class="hidden"
-                           (change)="onFileSelected($event)">
-                </div>
-                <span *ngIf="imageName" class="text-sm text-gray-500">
-                    {{ imageName }}
-                </span>
-            </div>
+            
 
             <!-- Campos de información -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6" >

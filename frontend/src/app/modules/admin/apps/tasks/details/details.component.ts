@@ -3,7 +3,7 @@ import { TemplatePortal } from '@angular/cdk/portal'; // Importa portal para pro
 import { TextFieldModule } from '@angular/cdk/text-field'; // Importa módulo para campos de texto
 import { DatePipe, NgClass, NgFor, NgIf } from '@angular/common'; // Importa directivas comunes de Angular
 import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit, Renderer2, TemplateRef, ViewChild, ViewContainerRef, ViewEncapsulation } from '@angular/core'; // Importa elementos core de Angular
-import { FormsModule, ReactiveFormsModule, UntypedFormBuilder, UntypedFormGroup, FormControl, FormGroupDirective, NgForm } from '@angular/forms'; // Importa módulos para manejo de formularios
+import { FormsModule, ReactiveFormsModule, UntypedFormBuilder, UntypedFormGroup, FormControl, FormGroupDirective, NgForm ,  AbstractControl, ValidationErrors, ValidatorFn} from '@angular/forms'; // Importa módulos para manejo de formularios
 import { MatButtonModule } from '@angular/material/button'; // Importa módulo de botones de Material
 import { MatCheckboxModule } from '@angular/material/checkbox'; // Importa módulo de checkbox de Material
 import { MatRippleModule } from '@angular/material/core'; // Importa módulo de efectos ripple de Material
@@ -43,6 +43,28 @@ export class CustomErrorStateMatcher implements ErrorStateMatcher {
             control.value !== null);
     }
 }
+// VALIDACIÓN: fecha de terminado no puede ser menor a fecha de inicio
+export const fechasValidator: ValidatorFn = (formGroup: AbstractControl): ValidationErrors | null => {
+  const fechaInicioCtrl = formGroup.get('fechaInicio');
+  const fechaTerminadoCtrl = formGroup.get('fechaTerminado');
+
+  if (fechaInicioCtrl && fechaTerminadoCtrl) {
+    const fechaInicio = fechaInicioCtrl.value;
+    const fechaTerminado = fechaTerminadoCtrl.value;
+
+    if (fechaInicio && fechaTerminado && new Date(fechaTerminado) < new Date(fechaInicio)) {
+      fechaTerminadoCtrl.setErrors({ fechaInvalida: true }); // 🚨 error directo al control
+      return { fechaInvalida: true };
+    } else {
+      // ✅ limpiar errores si ya es válido
+      if (fechaTerminadoCtrl.hasError('fechaInvalida')) {
+        fechaTerminadoCtrl.setErrors(null);
+      }
+    }
+  }
+  return null;
+};
+
 
 // Primero, definimos una interfaz para los datos del empleado
 interface EmpleadoDetalle {
@@ -93,6 +115,7 @@ export const MY_DATE_FORMATS = {
     },
 };
 
+
 @Injectable()
 export class CustomDateAdapter extends NativeDateAdapter {
   override getFirstDayOfWeek(): number {
@@ -111,6 +134,7 @@ export class CustomDateAdapter extends NativeDateAdapter {
       : ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   }
 }
+
 
 @Component({
     selector       : 'tasks-details',                    // Selector del componente para uso en templates
@@ -261,6 +285,8 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
             });
     }
 
+    
+
     // -----------------------------------------------------------------------------------------------------
     // @ Hooks del ciclo de vida
     // -----------------------------------------------------------------------------------------------------
@@ -362,7 +388,7 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
                     this._titleField.nativeElement.focus();
                 }
             });
-
+            
         // Crea el formulario de servicio
         this.servicioForm = this._formBuilder.group({
             servicios_id: [''],
@@ -398,7 +424,7 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
             tecnicoRegistroString: [{value: '', disabled: true}],
             tipoDescripcion: [null],
             codigo: ['']
-        });
+        }, { validators: fechasValidator }); // 👈 aquí aplicamos el validador
 
         // Obtener el servicio actual
         this._activatedRoute.paramMap.pipe(
@@ -415,6 +441,13 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
                 // Cargar el formulario con los datos del servicio
                 this.servicioForm.patchValue(this.servicio);
 
+        //  Forzar validación inmediata
+        this.servicioForm.updateValueAndValidity({ onlySelf: false, emitEvent: true });
+
+        //  Marcar los campos de fecha como "tocados" para que muestren error si aplica
+        this.servicioForm.get('fechaInicio')?.markAsTouched();
+        this.servicioForm.get('fechaTerminado')?.markAsTouched();
+
                 // Si hay un equipo, buscar su información
                 if (this.servicio.equipo) {
                     console.log('Buscando equipo con ID:', this.servicio.equipo);
@@ -428,24 +461,19 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
                                     codigo: equipoEncontrado.codigo
                                 };
                                 
-                                // Actualizar el control de búsqueda
                                 this.searchEquipoCtrl.setValue(equipoParaSelect, { emitEvent: false });
-                                
-                                // Actualizar el formulario
                                 this.servicioForm.patchValue({
                                     equipo: equipoEncontrado.equipos_id,
                                     equipos_id: equipoEncontrado.equipos_id,
                                     codigo: equipoEncontrado.codigo
                                 });
 
-                                // Cargar la lista inicial de equipos incluyendo el equipo actual
                                 this._tasksService.buscarEquipos(0, 100, 'name', 'asc', '').subscribe(response => {
                                     let equipos = response.equipments.map(equipo => ({
                                         equipos_id: equipo.equipos_id,
                                         codigo: equipo.codigo
                                     }));
 
-                                    // Asegurarse de que el equipo actual esté en la lista
                                     const existeEquipo = equipos.some(e => e.equipos_id === equipoEncontrado.equipos_id);
                                     if (!existeEquipo) {
                                         equipos = [equipoParaSelect, ...equipos];

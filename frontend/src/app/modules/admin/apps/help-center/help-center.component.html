@@ -1,9 +1,6 @@
 <div class="flex flex-col flex-auto min-w-0">
 
-    <!-- Header -->
     <div class="relative pt-8 pb-28 px-4 sm:pt-20 sm:pb-48 sm:px-16 overflow-hidden bg-gray-800 dark:bg-gray-900 dark">
-        <!-- Background - @formatter:off -->
-        <!-- Rings -->
         <svg class="absolute inset-0 pointer-events-none"
              viewBox="0 0 960 540" width="100%" height="100%" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
             <g class="text-gray-700 opacity-25" fill="none" stroke="currentColor" stroke-width="100">
@@ -11,7 +8,6 @@
                 <circle r="234" cx="790" cy="491"></circle>
             </g>
         </svg>
-        <!-- @formatter:on -->
         <div class="z-10 relative flex flex-col items-center">
             <h2 class="text-xl font-semibold">CENTRO DE AYUDA</h2>
             <div class="mt-1 text-4xl sm:text-7xl font-extrabold tracking-tight leading-tight text-center">
@@ -25,18 +21,24 @@
                 [subscriptSizing]="'dynamic'">
                 <input
                     matInput
-                    [placeholder]="'Enter a question, topic or keyword'">
+                    [placeholder]="'Enter a question, topic or keyword'"
+                    [formControl]="searchInputControl"
+                    [matAutocomplete]="auto"
+                    (focus)="onSearchInputFocus()">
                 <mat-icon
                     matPrefix
                     [svgIcon]="'heroicons_outline:magnifying-glass'"></mat-icon>
+                <mat-autocomplete #auto="matAutocomplete">
+                    <mat-option *ngFor="let item of filteredResults" (click)="navigateToItem(item)">
+                        {{ item.title || item.question || item.subtitle }}
+                    </mat-option>
+                </mat-autocomplete>
             </mat-form-field>
         </div>
     </div>
 
     <div class="flex flex-col items-center pb-6 px-6 sm:pb-10 sm:px-10">
-        <!-- Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-y-8 md:gap-y-0 md:gap-x-6 w-full max-w-sm md:max-w-4xl -mt-16 sm:-mt-24">
-            <!-- FAQs card -->
             <div class="relative flex flex-col rounded-2xl shadow hover:shadow-lg overflow-hidden bg-card transition-shadow ease-in-out duration-150">
                 <div class="flex flex-col flex-auto items-center p-8 text-center">
                     <div class="text-2xl font-semibold">Preguntas frecuentes</div>
@@ -45,7 +47,7 @@
                 <div class="flex items-center justify-center py-4 px-8 text-primary-500 dark:text-primary-400 bg-gray-50 dark:bg-transparent dark:border-t">
                     <a
                         class="flex items-center"
-                        [routerLink]="['faqs']">
+                        [routerLink]="['/apps/help-center/faqs']">
                         <span class="absolute inset-0"></span>
                         <span class="font-medium">Ir a preguntas frecuentes</span>
                         <mat-icon
@@ -54,7 +56,6 @@
                     </a>
                 </div>
             </div>
-            <!-- Guides card -->
             <div class="relative flex flex-col rounded-2xl shadow hover:shadow-lg overflow-hidden bg-card transition-shadow ease-in-out duration-150">
                 <div class="flex flex-col flex-auto items-center p-8 text-center">
                     <div class="text-2xl font-semibold">Guías</div>
@@ -63,7 +64,7 @@
                 <div class="flex items-center justify-center py-4 px-8 text-primary-500 dark:text-primary-400 bg-gray-50 dark:bg-transparent dark:border-t">
                     <a
                         class="flex items-center"
-                        [routerLink]="['guides']">
+                        [routerLink]="['/apps/help-center/guides']">
                         <span class="absolute inset-0"></span>
                         <span class="font-medium">Consultar guías</span>
                         <mat-icon
@@ -72,7 +73,6 @@
                     </a>
                 </div>
             </div>
-            <!-- Support card -->
             <div class="relative flex flex-col rounded-2xl shadow hover:shadow-lg overflow-hidden bg-card transition-shadow ease-in-out duration-150">
                 <div class="flex flex-col flex-auto items-center p-8 text-center">
                     <div class="text-2xl font-semibold">Soporte</div>
@@ -81,7 +81,7 @@
                 <div class="flex items-center justify-center py-4 px-8 text-primary-500 dark:text-primary-400 bg-gray-50 dark:bg-transparent dark:border-t">
                     <a
                         class="flex items-center"
-                        [routerLink]="['support']">
+                        [routerLink]="['/apps/help-center/support']">
                         <span class="absolute inset-0"></span>
                         <span class="font-medium">Contáctanos</span>
                         <mat-icon
@@ -91,7 +91,6 @@
                 </div>
             </div>
         </div>
-        <!-- FAQs -->
         <div class="mt-24 text-3xl sm:text-5xl font-extrabold leading-tight tracking-tight text-center">Preguntas más frecuentes</div>
         <div class="mt-2 text-xl text-center text-secondary">Aquí están las preguntas más frecuentes que puedes consultar antes de empezar</div>
         <mat-accordion class="max-w-4xl mt-12">

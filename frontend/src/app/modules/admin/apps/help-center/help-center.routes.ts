@@ -5,7 +5,7 @@ import { HelpCenterGuidesCategoryComponent } from 'app/modules/admin/apps/help-c
 import { HelpCenterGuidesGuideComponent } from 'app/modules/admin/apps/help-center/guides/guide/guide.component';
 import { HelpCenterGuidesComponent } from 'app/modules/admin/apps/help-center/guides/guides.component';
 import { HelpCenterComponent } from 'app/modules/admin/apps/help-center/help-center.component';
-import { HelpCenterService } from 'app/modules/admin/apps/help-center/help-center.service';
+import { HelpCenterService, GuideResolver } from 'app/modules/admin/apps/help-center/help-center.service';
 import { HelpCenterSupportComponent } from 'app/modules/admin/apps/help-center/support/support.component';
 
 export default [
@@ -48,8 +48,7 @@ export default [
                         path     : ':guideSlug',
                         component: HelpCenterGuidesGuideComponent,
                         resolve  : {
-                            guides: (route: ActivatedRouteSnapshot, state: RouterStateSnapshot) =>
-                                inject(HelpCenterService).getGuide(route.parent.paramMap.get('categorySlug'), route.paramMap.get('guideSlug')),
+                            guide: GuideResolver,
                         },
                     },
                 ],
@@ -61,3 +60,4 @@ export default [
         component: HelpCenterSupportComponent,
     },
 ] as Routes;
+    

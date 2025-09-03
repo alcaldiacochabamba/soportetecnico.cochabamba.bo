@@ -171,28 +171,45 @@
                 <mat-datepicker #pickerRegistro></mat-datepicker>
             </mat-form-field>
         </div>
-
         <!-- Sexta fila -->
         <div class="grid grid-cols-2 gap-4 mb-4 mt-2">
-            <mat-form-field [subscriptSizing]="'dynamic'">
-                <mat-label>Fecha Inicio</mat-label>
-                <input matInput [formControlName]="'fechaInicio'" [matDatepicker]="pickerInicio" readonly>
-                <mat-datepicker-toggle matIconSuffix [for]="pickerInicio">
-                    <mat-icon matDatepickerToggleIcon>keyboard_arrow_down</mat-icon>
-                </mat-datepicker-toggle>
-                <mat-datepicker #pickerInicio></mat-datepicker>
-            </mat-form-field>
-            
-            <mat-form-field [subscriptSizing]="'dynamic'">
-                <mat-label>Fecha Terminado</mat-label>
-                <input matInput [formControlName]="'fechaTerminado'" [matDatepicker]="pickerTerminado" readonly>
-                <mat-datepicker-toggle matIconSuffix [for]="pickerTerminado">
-                    <mat-icon matDatepickerToggleIcon>keyboard_arrow_down</mat-icon>
-                </mat-datepicker-toggle>
-                <mat-datepicker #pickerTerminado></mat-datepicker>
-            </mat-form-field>
-            <div></div> <!-- Espacio vacío para mantener la alineación -->
+
+        <!-- Fecha Inicio -->
+        <mat-form-field [subscriptSizing]="'dynamic'">
+            <mat-label>Fecha Inicio</mat-label>
+            <input matInput
+                formControlName="fechaInicio"
+                [matDatepicker]="pickerInicio"
+                readonly>
+            <mat-datepicker-toggle matIconSuffix [for]="pickerInicio">
+            <mat-icon matDatepickerToggleIcon>keyboard_arrow_down</mat-icon>
+            </mat-datepicker-toggle>
+            <mat-datepicker #pickerInicio></mat-datepicker>
+        </mat-form-field>
+
+        <!-- Fecha Terminado -->
+        <mat-form-field [subscriptSizing]="'dynamic'">
+            <mat-label>Fecha Terminado</mat-label>
+            <input matInput
+                formControlName="fechaTerminado"
+                [matDatepicker]="pickerTerminado"
+                [min]="servicioForm.get('fechaInicio')?.value"
+                readonly>
+            <mat-datepicker-toggle matIconSuffix [for]="pickerTerminado">
+            <mat-icon matDatepickerToggleIcon>keyboard_arrow_down</mat-icon>
+            </mat-datepicker-toggle>
+            <mat-datepicker #pickerTerminado></mat-datepicker>
+
+            <!-- Error usando el validador fechasValidator -->
+            <mat-error *ngIf="servicioForm.get('fechaTerminado')?.hasError('fechaInvalida')">
+            La fecha de terminado no puede ser anterior a la fecha de inicio
+            </mat-error>
+        </mat-form-field>
+
+        <div></div> <!-- Espacio vacío para mantener la alineación -->
+
         </div>
+
 
         <!-- Campos de texto -->
         <div class="flex flex-col gap-4 mb-4">
