@@ -1,5 +1,4 @@
 const dotenv = require("dotenv")
-dotenv.config({ path: '.env.dev' });  // LINEA AÑADIDA PARA QUE DE MI .ENV.DEV
 dotenv.config()
 
 module.exports =  {
