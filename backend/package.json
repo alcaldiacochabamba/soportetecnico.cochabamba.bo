@@ -24,6 +24,8 @@
     "pg-hstore": "^2.3.4",
     "qs": "^6.13.1",
     "request": "^2.88.2",
-    "sequelize": "^6.37.3"
+    "sequelize": "^6.37.3",
+    "nodemailer": "^7.0.5"
+
   }
 }
