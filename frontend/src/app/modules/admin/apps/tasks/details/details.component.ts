@@ -19,7 +19,7 @@ import { FuseFindByKeyPipe } from '@fuse/pipes/find-by-key/find-by-key.pipe'; //
 import { FuseConfirmationService } from '@fuse/services/confirmation'; // Importa servicio de confirmación de Fuse
 import { TasksListComponent } from 'app/modules/admin/apps/tasks/list/list.component'; // Importa componente de lista de tareas
 import { TasksService } from 'app/modules/admin/apps/tasks/tasks.service'; // Importa servicio de tareas
-import { Tag, Task, Servicio } from 'app/modules/admin/apps/tasks/tasks.types'; // Importa interfaces de tipos
+import { Tag, Task, Servicio , BienCaracteristicas  } from 'app/modules/admin/apps/tasks/tasks.types'; // Importa interfaces de tipos
 import { assign } from 'lodash-es'; // Importa función assign de lodash
 import { DateTime } from 'luxon'; // Importa librería para manejo de fechas
 import { debounceTime, filter, Subject, takeUntil, tap, switchMap, of, catchError, EMPTY, retry } from 'rxjs'; // Importa operadores y tipos de RxJS
@@ -567,6 +567,10 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
                 this.filteredEmpleadosCI = [];
             }
         });
+            const equiposId = this.servicioForm?.get('equipo')?.value || this.servicio?.equipo;
+        if (equiposId) {
+            this.loadEquipoDetalle(Number(equiposId));
+        }
     }
 
     /**
@@ -961,6 +965,31 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
             });
         }
     }
+    public equipoDetalle: any = null;
+    private async loadEquipoDetalle(equiposId: number): Promise<void> {
+  try {
+    const eq = await this._tasksService.getEquipoDetalleById(equiposId).toPromise();
+
+    // Si no viene la descripción del tipo, la resolvemos
+    let tipoDesc = eq?.tipoDescripcion || null;
+    if (!tipoDesc && eq?.tipo) {
+      try {
+        tipoDesc = await this._tasksService.getTipoDescripcionById(Number(eq.tipo)).toPromise();
+      } catch { /* noop */ }
+    }
+
+    this.equipoDetalle = {
+      ...eq,
+      tipoDescripcion: tipoDesc || eq?.tipoDescripcion || null,
+    };
+  } catch (e) {
+    console.warn('No se pudo cargar equipoDetalle:', e);
+    this.equipoDetalle = null;
+  }
+  this._changeDetectorRef.markForCheck?.();
+}
+
+
 
     /**
      * Busca los bienes asociados al equipo
@@ -990,6 +1019,10 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
             console.warn('El código de bienes está vacío o no válido.');
             this.bienes = null;
         }
+        const equiposId = this.servicioForm.get('equipo')?.value;
+            if (equiposId) {
+                this.loadEquipoDetalle(Number(equiposId));
+            }
     }
 
     selectEquipo(equipo: { equipos_id: number; codigo: string }): void {
@@ -1008,6 +1041,9 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
         
         this._changeDetectorRef.markForCheck();
         this.getBienes();
+        this.servicioForm.get('equipo')?.setValue(equipo.equipos_id);
+        this.loadEquipoDetalle(Number(equipo.equipos_id));
+
     }
 
     displayFn = (equipo: any): string => {
@@ -1460,122 +1496,266 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
             throw new Error('No hay servicio seleccionado');
         }
 
-        // Obtener datos actualizados del servicio
-        const serviceResponse = await this._tasksService.getTaskById(this.servicio.servicios_id).toPromise();
+        // 1) Servicio actualizado
+        const serviceResponse = await this._tasksService
+            .getTaskById(this.servicio.servicios_id)
+            .toPromise();
         const servicioActualizado = serviceResponse.data;
 
-        const doc = new jsPDF() as jsPDFWithPlugin;
-        const pageWidth = doc.internal.pageSize.width;
+        // 2) Equipo (para hardware + identificación)
+        const equiposId: number | null =
+            (servicioActualizado?.equipo ?? this.servicio?.equipo) ?? null;
+
+        let equipoDetalle: any = null;
+        if (equiposId) {
+            try {
+                equipoDetalle = await this._tasksService
+                    .getEquipoDetalleById(equiposId)
+                    .toPromise();
+            } catch (e) {
+                console.warn('No se pudo obtener detalle de equipo:', e);
+                equipoDetalle = null;
+            }
+        }
+
+        // Si solo tenemos el ID de tipo, resolvemos su descripción
+        let tipoDescFromApi: string | null = null;
+        if (equipoDetalle?.tipo && !equipoDetalle?.tipoDescripcion) {
+            try {
+                tipoDescFromApi = await this._tasksService
+                    .getTipoDescripcionById(Number(equipoDetalle.tipo))
+                    .toPromise();
+            } catch {
+                tipoDescFromApi = null;
+            }
+        }
+
+        // === DOC EN MM, A4, MÁRGENES COMPACTOS ===
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' }) as jsPDFWithPlugin;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const MARGIN_X = 12;
+        const START_Y = 18;
         const today = new Date();
 
         try {
-            // Cargar logo
+            // LOGO
             const logoImg = await this.loadImage('/assets/images/logo/logo.svg');
             const canvas = document.createElement('canvas');
-            canvas.width = 100;
-            canvas.height = 100;
-            const ctx = canvas.getContext('2d');
+            canvas.width = 120; canvas.height = 120;
+            const ctx = canvas.getContext('2d')!;
             ctx.drawImage(logoImg, 0, 0, canvas.width, canvas.height);
             const logoBase64 = canvas.toDataURL('image/png');
+            doc.addImage(logoBase64, 'PNG', MARGIN_X, START_Y - 6, 10, 10);
 
-            // Agregar logo
-            doc.addImage(logoBase64, 'PNG', 15, 10, 25, 25);
+            // Encabezado
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('SISTEMA DESERVICIO TÉCNICO', MARGIN_X + 14, START_Y - 3);
 
-            // Título
-            doc.setFontSize(16);
-            doc.text('Detalle de Servicio Técnico', pageWidth/2, 25, { align: 'center' });
-            
-            doc.setFontSize(12);
-            doc.text(`Fecha de generación: ${today.toLocaleDateString()} ${today.toLocaleTimeString()}`, pageWidth/2, 35, { align: 'center' });
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'bold');
+            doc.text('DETALLE DE SERVICIO TÉCNICO', MARGIN_X, START_Y + 6);
 
-            // Obtener el nombre del técnico asignado
-            const tecnicoAsignado = this.tecnicos.find(t => t.id === servicioActualizado.tecnicoAsignado)?.nombre || 'Sin asignar';
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text(
+                `FECHA ${today.toLocaleDateString()}  HORA ${today.toLocaleTimeString()}`,
+                pageWidth - MARGIN_X,
+                START_Y + 6,
+                { align: 'right' }
+            );
 
-            // Formatear las fechas
+            doc.setLineWidth(0.1);
+            doc.line(MARGIN_X, START_Y + 8, pageWidth - MARGIN_X, START_Y + 8);
+
+            // Rótulo
+            let y = START_Y + 14;
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            doc.text('DATOS DEL SERVICIO', MARGIN_X, y);
+            y += 2;
+
+            // Auxiliares
             const fechaRegistro = this.formatDisplayDate(servicioActualizado.fechaRegistro);
             const fechaInicio = this.formatDisplayDate(servicioActualizado.fechaInicio);
             const fechaTerminado = this.formatDisplayDate(servicioActualizado.fechaTerminado);
+            const tecnicoAsignadoNombre =
+                this.tecnicos?.find?.((t: any) => t.id === servicioActualizado.tecnicoAsignado)?.nombre
+                || this.servicio?.tecnicoAsignadoString
+                || 'Sin asignar';
 
-            // Información del servicio
-            const data = [
-                
-                ['Tipo de Servicio', servicioActualizado.tipo || this.servicio.tipo || 'N/A'],
-                ['Estado', servicioActualizado.estado || this.servicio.estado || 'N/A'],
-                ['ID Servicio', servicioActualizado.servicios_id || 'N/A'],
+            // Tabla dos columnas
+            const baseData: Array<[string, any]> = [
+                ['Tipo de Servicio', servicioActualizado.tipo ?? this.servicio.tipo ?? 'N/A'],
+                ['Estado', servicioActualizado.estado ?? this.servicio.estado ?? 'N/A'],
+                ['ID Servicio', servicioActualizado.servicios_id ?? this.servicio.servicios_id ?? 'N/A'],
                 ['Fecha de Registro', fechaRegistro],
                 ['Fecha de Inicio', fechaInicio],
                 ['Fecha de Término', fechaTerminado],
-                ['Nombre Solicitante', servicioActualizado.nombreSolicitante || this.servicio.nombreSolicitante || 'N/A'],
-                ['CI Solicitante', servicioActualizado.ciSolicitante || this.servicio.ciSolicitante || 'N/A'],
-                ['Cargo Solicitante', servicioActualizado.cargoSolicitante || this.servicio.cargoSolicitante || 'N/A'],
-                ['Tipo de Solicitante', servicioActualizado.tipoSolicitante || this.servicio.tipoSolicitante || 'N/A'],
-                ['Oficina Solicitante', servicioActualizado.oficinaSolicitante || this.servicio.oficinaSolicitante || 'N/A'],
-                ['Teléfono Solicitante', servicioActualizado.telefonoSolicitante || this.servicio.telefonoSolicitante || 'N/A'],
-                ['Problema', servicioActualizado.problema || this.servicio.problema || 'N/A'],
-                ['Observaciones', servicioActualizado.observaciones || this.servicio.observaciones || 'N/A'],
-                ['Informe', servicioActualizado.informe || this.servicio.informe || 'N/A'],
-                ['Técnico Asignado', tecnicoAsignado || this.servicio.tecnicoAsignadoString || 'N/A'],
-                ['Técnico Registro', servicioActualizado.tecnicoRegistroString || this.servicio.tecnicoRegistroString || 'N/A']
-            ]
-            
+                ['Nombre Solicitante', servicioActualizado.nombreSolicitante ?? this.servicio.nombreSolicitante ?? 'N/A'],
+                ['CI Solicitante', servicioActualizado.ciSolicitante ?? this.servicio.ciSolicitante ?? 'N/A'],
+                ['Cargo Solicitante', servicioActualizado.cargoSolicitante ?? this.servicio.cargoSolicitante ?? 'N/A'],
+                ['Tipo de Solicitante', servicioActualizado.tipoSolicitante ?? this.servicio.tipoSolicitante ?? 'N/A'],
+                ['Oficina Solicitante', servicioActualizado.oficinaSolicitante ?? this.servicio.oficinaSolicitante ?? 'N/A'],
+                ['Teléfono Solicitante', servicioActualizado.telefonoSolicitante ?? this.servicio.telefonoSolicitante ?? 'N/A'],
+                ['Técnico Asignado', tecnicoAsignadoNombre],
+                ['Técnico Registro', servicioActualizado.tecnicoRegistroString ?? this.servicio.tecnicoRegistroString ?? 'N/A'],
+            ];
 
-            doc.autoTable({
-                startY: 45,
-                head: [['Campo', 'Valor']],
-                body: data,
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [109, 85, 159],
-                    textColor: 255,
-                    fontSize: 10,
-                    fontStyle: 'bold',
-                },
+            const half = Math.ceil(baseData.length / 2);
+            const left = baseData.slice(0, half);
+            const right = baseData.slice(half);
+            const body2Cols: any[] = [];
+            for (let i = 0; i < left.length; i++) {
+                const L = left[i] || ['', ''];
+                const R = right[i] || ['', ''];
+                body2Cols.push([L[0], L[1], R[0], R[1]]);
+            }
+
+            const labelW = 34;
+            const contentW = (pageWidth - 2 * MARGIN_X - labelW * 2) / 2;
+
+            (doc as any).autoTable({
+                startY: y + 2,
+                theme: 'plain',
+                head: [],
+                body: body2Cols,
                 styles: {
-                    fontSize: 9,
-                    cellPadding: 3,
+                    fontSize: 8,
+                    cellPadding: 0.8,
+                    overflow: 'linebreak',
+                    valign: 'middle',
+                },
+                columnStyles: {
+                    0: { cellWidth: labelW, fontStyle: 'bold' },
+                    1: { cellWidth: contentW },
+                    2: { cellWidth: labelW, fontStyle: 'bold' },
+                    3: { cellWidth: contentW },
+                },
+                margin: { left: MARGIN_X, right: MARGIN_X },
+                didDrawCell: (hookData: any) => {
+                    const isBody = hookData.section === 'body';
+                    const isLastCol = hookData.column.index === hookData.table.columns.length - 1;
+                    if (isBody && isLastCol) {
+                        const startX = Number(hookData.table.startX);
+                        const endX = Number(hookData.table.startX + hookData.table.width);
+                        const yLine = Number(hookData.cell.y + hookData.cell.height);
+                        if (Number.isFinite(startX) && Number.isFinite(endX) && Number.isFinite(yLine)) {
+                            doc.setLineWidth(0.1);
+                            doc.setDrawColor(0, 0, 0);
+                            doc.line(startX, yLine, endX, yLine);
+                        }
+                    }
                 },
             });
 
-            // Si hay información de bienes, agregar en una nueva página
-            if (this.bienes?.data) {
-                doc.addPage();
-                doc.setFontSize(14);
-                doc.text('Información de Bienes', pageWidth/2, 20, { align: 'center' });
+            // ========= NUEVO BLOQUE: IDENTIFICACIÓN DEL EQUIPO =========
+            let afterTableY = (doc as any).lastAutoTable?.finalY || (START_Y + 22);
+            if (equipoDetalle) {
+                const tipoDesc =
+                    equipoDetalle.tipoDescripcion ||  // ya viene resuelto
+                    tipoDescFromApi ||               // lo resolvimos por API
+                    '';                              // fallback
 
-                const bienesData = [
-                    ['Tipo Hardware', this.bienes.data.tipo || 'N/A'],
-                    ['Descripción', this.bienes.data.observacion || 'N/A'],
-                    ['Unidad', this.bienes.data.unidad || 'N/A'],
-                    ['Marca', this.bienes.data.caracteristicas?.MARCA || 'N/A'],
-                    ['Modelo', this.bienes.data.caracteristicas?.MODELO || 'N/A'],
-                    ['Serie', this.bienes.data.caracteristicas?.SERIE || 'N/A']
-                ];
+                const idRows = [
+                    ['Código de Bienes', String(equipoDetalle.codigo || 'N/A')],
+                    ['Tipo de Hardware', String(tipoDesc || 'N/A')],
+                    ['Marca', String(equipoDetalle.marca || 'N/A')],
+                ].filter(([, v]) => (v && v !== 'N/A')) as [string, string][];
 
-                doc.autoTable({
-                    startY: 30,
-                    head: [['Característica', 'Valor']],
-                    body: bienesData,
-                    theme: 'grid',
-                    headStyles: {
-                        fillColor: [109, 85, 159],
-                        textColor: 255,
-                        fontSize: 10,
-                        fontStyle: 'bold',
-                    },
-                    styles: {
-                        fontSize: 9,
-                        cellPadding: 3,
-                    },
-                });
+                if (idRows.length) {
+                    afterTableY += 6;
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('IDENTIFICACIÓN DEL EQUIPO', MARGIN_X, afterTableY);
+
+                    (doc as any).autoTable({
+                        startY: afterTableY + 2,
+                        theme: 'plain',
+                        body: idRows,
+                        styles: { fontSize: 8, cellPadding: 0.8, overflow: 'linebreak' },
+                        columnStyles: {
+                            0: { cellWidth: 40, fontStyle: 'bold' },
+                            1: { cellWidth: pageWidth - 2 * MARGIN_X - 40 },
+                        },
+                        margin: { left: MARGIN_X, right: MARGIN_X },
+                    });
+
+                    afterTableY = (doc as any).lastAutoTable?.finalY || afterTableY;
+                }
             }
 
-            // Agregar numeración de páginas
-            const pageCount = doc.internal.getNumberOfPages();
-            for(let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                doc.setFontSize(8);
-                doc.text(`Página ${i} de ${pageCount}`, pageWidth - 20, doc.internal.pageSize.height - 10);
+            // ========= BLOQUE: CARACTERÍSTICAS DE HARDWARE =========
+            if (equipoDetalle) {
+                const hwRows = [
+                    ['Procesador', String(equipoDetalle.procesador || 'N/A')],
+                    ['Memoria RAM', String(equipoDetalle.memoria || 'N/A')],
+                    ['Disco Duro', String(equipoDetalle.discoduro || 'N/A')],
+                    ['Tarjeta Madre', String(equipoDetalle.tarjetamadre || 'N/A')],
+                    ['Tarjeta de Video', String(equipoDetalle.tarjetavideo || 'N/A')],
+                ].filter(([, v]) => (v && v !== 'N/A')) as [string, string][];
+
+                if (hwRows.length) {
+                    afterTableY += 6;
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('CARACTERÍSTICAS DE HARDWARE', MARGIN_X, afterTableY);
+
+                    (doc as any).autoTable({
+                        startY: afterTableY + 2,
+                        theme: 'plain',
+                        body: hwRows,
+                        styles: { fontSize: 8, cellPadding: 0.8, overflow: 'linebreak' },
+                        columnStyles: {
+                            0: { cellWidth: 40, fontStyle: 'bold' },
+                            1: { cellWidth: pageWidth - 2 * MARGIN_X - 40 },
+                        },
+                        margin: { left: MARGIN_X, right: MARGIN_X },
+                    });
+
+                    afterTableY = (doc as any).lastAutoTable?.finalY || afterTableY;
+                }
             }
+
+            // ========= BLOQUES DE TEXTO =========
+            const addWrappedBlock = (titulo: string, contenido: any) => {
+                const txt = String(contenido ?? '').trim();
+                if (!txt) return;
+                afterTableY += 4;
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'bold');
+                doc.text(titulo, MARGIN_X, afterTableY);
+                doc.setFont(undefined, 'normal');
+                const wrapped = doc.splitTextToSize(txt, pageWidth - 2 * MARGIN_X);
+                doc.text(wrapped, MARGIN_X, afterTableY + 4);
+                afterTableY += 4 + (wrapped.length * 4.2);
+            };
+
+            addWrappedBlock('PROBLEMA', servicioActualizado.problema ?? this.servicio.problema);
+            addWrappedBlock('OBSERVACIONES', servicioActualizado.observaciones ?? this.servicio.observaciones);
+            addWrappedBlock('INFORME', servicioActualizado.informe ?? this.servicio.informe);
+
+            // ========= FIRMA (CERCA DEL TEXTO, NO AL FONDO) =========
+            // Posicionamos la firma apenas debajo del último bloque,
+            // cuidando que no choque con el pie de página.
+            const firmaY = Math.min(afterTableY + 12, pageHeight - 30); // 30 mm de margen inferior de seguridad
+            const lineaAncho = 60; // ancho de la línea de firma
+            const x2 = pageWidth - MARGIN_X;      // extremo derecho
+            const x1 = x2 - lineaAncho;           // inicio de la línea (derecha del contenido)
+
+            // Texto "Firma" justo arriba de la línea
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            doc.text('Firma', (x1 + x2) / 2, firmaY - 2, { align: 'center' });
+
+            // Línea de firma
+            doc.setLineWidth(0.2);
+            doc.line(x1, firmaY, x2, firmaY);
+
+            // Pie
+            doc.setFontSize(7);
+            doc.text('Página 1 de 1', pageWidth - MARGIN_X, pageHeight - 6, { align: 'right' });
 
         } catch (error) {
             console.error('Error al generar el PDF:', error);
@@ -1584,6 +1764,8 @@ export class TasksDetailsComponent implements OnInit, AfterViewInit, OnDestroy
 
         return doc;
     }
+
+
 
     async generarPDF(): Promise<void> {
         try {

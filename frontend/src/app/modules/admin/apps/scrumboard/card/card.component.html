@@ -21,6 +21,7 @@
             'bg-gray-100 text-gray-800': card.estado === EstadoServicio.SIN_ASIGNAR,
             'bg-yellow-500 text-white': card.estado === EstadoServicio.PENDIENTE,
             'bg-blue-500 text-white': card.estado === EstadoServicio.EN_PROGRESO,
+            'bg-purple-300 text-purple-900': card.estado === EstadoServicio.EGRESO,
             'bg-green-500 text-white': card.estado === EstadoServicio.TERMINADO
         }">
             {{card.estado}}

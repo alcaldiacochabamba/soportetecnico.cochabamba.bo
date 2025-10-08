@@ -23,6 +23,34 @@ export interface Empleado {
     nro_item?: string;
     // ... otros campos
 }
+// Agregar la interfaz para obtener detalles completos del equipo
+export interface EquipoDetalle {
+    equipos_id: number;
+    codigo: string;
+    marca?: string;
+    modelo?: string;
+    serie?: string;
+    procesador?: string;
+    memoria?: string;       // RAM
+    discoduro?: string;
+    tarjetamadre?: string;
+    tarjetavideo?: string;
+    so?: string;
+    antivirus?: string;
+    mac?: string;
+    ip?: string;
+    lector?: boolean | number | string;
+    oficina?: string;
+    funcionariousuario?: string;
+    funcionarioasignado?: string;
+    fecharegistro?: string;
+    garantia?: string;
+    responsabledelregistroString?: string;
+    tipo?: number | string;
+    tipoDescripcion?: string;
+}
+
+
 
 @Injectable({providedIn: 'root'})
 export class TasksService
@@ -404,6 +432,7 @@ export class TasksService
     }
     
     
+    
 
     /**
      * Create task
@@ -779,6 +808,28 @@ export class TasksService
             })
         );
     }
+    /**
+     * Obtiene todos los detalles de un equipo (para hardware completo)
+     */
+    getEquipoDetalleById(equipos_id: number): Observable<EquipoDetalle | null> {
+        return this._httpClient.get<any>(`${this.baseUrl}/equipment/${equipos_id}`).pipe(
+            map(resp => resp?.data ?? null),
+            catchError(err => {
+                console.error('Error getEquipoDetalleById:', err);
+                return of(null);
+            })
+        );
+    }
+
+    // En tasks.service.ts
+    getTipoDescripcionById(tipoId: number): Observable<string> {
+    return this._httpClient.get<any>(`${this.baseUrl}/type/${tipoId}`).pipe(
+        map(resp => resp?.data?.descripcion || String(tipoId)),
+        catchError(() => of(String(tipoId)))
+    );
+    }
+
+
 
     buscarEmpleados(nombreCompleto: string): Observable<Empleado[] | null> {
         const headers = new HttpHeaders().set('Content-Type', 'application/x-www-form-urlencoded');

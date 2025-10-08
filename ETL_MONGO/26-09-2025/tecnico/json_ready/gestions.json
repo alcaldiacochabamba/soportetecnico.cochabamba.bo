@@ -1,0 +1,74 @@
+[
+  {
+    "_id": "5a9eae0938913f60b369765b",
+    "numero": 4109,
+    "anio": "2018",
+    "descripcion": "GESTIÓN 2018",
+    "estado": 0,
+    "__v": 0,
+    "id_numerico": 1
+  },
+  {
+    "_id": "5c2cafd21a599428366c93f2",
+    "numero": 5040,
+    "anio": "2019",
+    "descripcion": "GESTION 2019",
+    "estado": 0,
+    "__v": 0,
+    "id_numerico": 2
+  },
+  {
+    "_id": "5e0bbd4f3b58300a8be226c5",
+    "numero": 3955,
+    "anio": "2020",
+    "descripcion": "GESTION 2020",
+    "estado": 0,
+    "__v": 0,
+    "id_numerico": 3
+  },
+  {
+    "_id": "5ff2722678e45a0ea4e3eba0",
+    "numero": 4926,
+    "anio": "2021",
+    "descripcion": "GESTION 2021",
+    "estado": 0,
+    "__v": 0,
+    "id_numerico": 4
+  },
+  {
+    "_id": "61d2d7b184f5e10236d317fc",
+    "numero": 4524,
+    "anio": "2022",
+    "descripcion": "GESTIÓN 2022",
+    "estado": 0,
+    "__v": 0,
+    "id_numerico": 5
+  },
+  {
+    "_id": "63b3448251ef5305f769275d",
+    "numero": 4377,
+    "anio": "2023",
+    "descripcion": "GESTIÓN 2023",
+    "estado": 0,
+    "__v": 0,
+    "id_numerico": 6
+  },
+  {
+    "_id": "659395aa1066b304f2427f76",
+    "numero": 3450,
+    "anio": "2024",
+    "descripcion": "GESTIÓN 2024",
+    "estado": 0,
+    "__v": 0,
+    "id_numerico": 7
+  },
+  {
+    "_id": "6775767882635532736d9d8c",
+    "numero": 2589,
+    "anio": "2025",
+    "descripcion": "GESTIÓN 2025",
+    "estado": 1,
+    "__v": 0,
+    "id_numerico": 8
+  }
+]

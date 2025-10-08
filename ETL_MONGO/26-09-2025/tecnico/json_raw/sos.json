@@ -1,0 +1,30 @@
+[
+  {
+    "_id": "5abd3c0458b17142f66e6b7b",
+    "descripcion": "WINDOWS",
+    "estado": 1,
+    "__v": 0,
+    "id_numerico": 1
+  },
+  {
+    "_id": "5abd3c0b58b17142f66e6b7c",
+    "descripcion": "LINUX MINT",
+    "estado": 1,
+    "__v": 0,
+    "id_numerico": 2
+  },
+  {
+    "_id": "5abd3c1258b17142f66e6b7d",
+    "descripcion": "LINUX SUSE 9",
+    "estado": 1,
+    "__v": 0,
+    "id_numerico": 3
+  },
+  {
+    "_id": "5b241c82f1272e1e718fcc81",
+    "descripcion": "OS X",
+    "estado": 1,
+    "__v": 0,
+    "id_numerico": 4
+  }
+]

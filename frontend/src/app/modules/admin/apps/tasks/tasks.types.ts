@@ -71,3 +71,25 @@ export interface InventoryEquipment {
     lector?: boolean;
 }
 
+// -----------------------------
+// Bienes (hardware)
+// -----------------------------
+export interface BienCaracteristicas {
+  MARCA?: string;
+  MODELO?: string;
+  SERIE?: string;
+  PROCESADOR?: string;
+  MEMORIA_RAM?: string;
+  DISCO_DURO?: string;
+  TARJETA_MADRE?: string;
+  TARJETA_VIDEO?: string;
+}
+
+export interface Bien {
+  tipo?: string;
+  observacion?: string;
+  unidad?: string;
+  caracteristicas?: BienCaracteristicas;
+}
+
+

@@ -1,0 +1,23 @@
+[
+  {
+    "_id": "5a9070ee623f9a466186c79d",
+    "descripcion": "TECNICO",
+    "estado": 1,
+    "__v": 0,
+    "id_numerico": 1
+  },
+  {
+    "_id": "5a90724b623f9a466186c79f",
+    "descripcion": "ROLE_ADMIN",
+    "estado": 1,
+    "__v": 0,
+    "id_numerico": 2
+  },
+  {
+    "_id": "5a908e7f53a05248c2a39ffb",
+    "descripcion": "CONSULTA",
+    "estado": 1,
+    "__v": 0,
+    "id_numerico": 3
+  }
+]
