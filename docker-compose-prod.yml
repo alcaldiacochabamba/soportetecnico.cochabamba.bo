@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  frontend:
+    container_name: soportetecnicodev-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8042:4200"
+    restart: always
+    networks:
+      - soportetecnicodev-network
+
+  backend:
+    container_name: soportetecnicoapidev-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8041:3002"
+    restart: always
+    env_file:
+      - ./backend/.env.prod
+    command: >
+      sh -c "npx sequelize-cli db:migrate && node app"
+    volumes:
+      - uploads_data:/app/uploads
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    networks:
+      - soportetecnicodev-network
+
+networks:
+  soportetecnicodev-network:
+    driver: bridge
+
+volumes:
+  uploads_data:
+    driver: local
