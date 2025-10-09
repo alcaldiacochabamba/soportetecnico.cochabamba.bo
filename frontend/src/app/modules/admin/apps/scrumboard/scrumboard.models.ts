@@ -52,7 +52,8 @@ export enum EstadoServicio {
     SIN_ASIGNAR = 'SIN ASIGNAR',
     PENDIENTE = 'PENDIENTE',
     EN_PROGRESO = 'EN PROGRESO',
-    TERMINADO = 'TERMINADO'
+    EGRESO = 'EGRESO', 
+     TERMINADO = 'TERMINADO'
 }
 
 export enum TipoServicio {
