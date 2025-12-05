@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, map, tap, switchMap, catchError, forkJoin, of, Subject, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, map, tap, switchMap, catchError, forkJoin, of, Subject, throwError, finalize } from 'rxjs';
 import { Board, Card, EstadoServicio, TipoServicio, Equipo } from './scrumboard.models';
 import { environment } from 'environments/environment';
 
@@ -1014,6 +1014,44 @@ export class ScrumboardService {
             catchError(error => {
                 console.error('Error en buscarEmpleadosPorCI:', error);
                 return of([]);
+            })
+        );
+    }
+
+    /**
+     * Obtener detalles del equipo por código
+     */
+    getEquipmentDetailsByCodigo(codigo: string): Observable<any> {
+        const url = `${this.apiUrl}/equipment?page=1&limit=10&search=${encodeURIComponent(codigo)}`;
+        console.group('Búsqueda de Equipo');
+        console.log('URL de búsqueda:', url);
+
+        return this._httpClient.get<any>(url).pipe(
+            tap(response => {
+                console.log('Respuesta completa de la API:', response);
+                if (response?.data?.data) {
+                    console.log('Número de equipos encontrados:', response.data.data.length);
+                    response.data.data.forEach((item, index) => {
+                        console.log(`Equipo ${index + 1}:`, item);
+                    });
+                }
+            }),
+            map(response => {
+                if (response?.data?.data && response.data.data.length > 0) {
+                    // Devolver el primer equipo encontrado
+                    const equipmentData = response.data.data[0].equipos_id;
+                    console.log('Datos del equipo seleccionado:', equipmentData);
+                    return equipmentData;
+                }
+                console.log('No se encontraron equipos');
+                return null;
+            }),
+            catchError(error => {
+                console.error('Error al obtener detalles del equipo:', error);
+                return of(null);
+            }),
+            finalize(() => {
+                console.groupEnd();
             })
         );
     }

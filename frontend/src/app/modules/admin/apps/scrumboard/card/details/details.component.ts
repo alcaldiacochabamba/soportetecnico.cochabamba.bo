@@ -118,6 +118,7 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
     responsablesCargadosCI: any[] = [];
     filteredResponsablesEgreso: any[] = [];
     filteredResponsablesEgresoCI: any[] = [];
+    equipmentDetails: any = null;
 
     @ViewChild('searchInput') searchInput: ElementRef;
 
@@ -636,18 +637,88 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
             : (codigoBienes as { codigo: string }).codigo.trim();
         
         if (codigoBienesLimpio) {
+            // Llamar a ambos métodos
             this._scrumboardService.getBienes(codigoBienesLimpio)
                 .subscribe({
                     next: (response) => {
                         this.bienes = response;
                         console.log('Bienes encontrados:', this.bienes);
+                        
+                        // Llamar al método para obtener detalles del equipo
+                        this.obtenerDetallesEquipo(codigoBienesLimpio);
                     },
                     error: (err) => {
                         console.error('Error al obtener bienes:', err);
                         this.bienes = null;
                     }
-            });
+                });
         }
+    }
+
+    // Método para obtener detalles completos del equipo
+    obtenerDetallesEquipo(codigo: string): void {
+        this.loading = true;
+        this._scrumboardService.getEquipmentDetailsByCodigo(codigo).subscribe({
+            next: (equipmentData) => {
+                console.group('Detalles del Equipo');
+                console.log('Código buscado:', codigo);
+                console.log('Datos del equipo recibidos:', equipmentData);
+                
+                // Imprimir todas las propiedades del objeto
+                if (equipmentData) {
+                    Object.keys(equipmentData).forEach(key => {
+                        console.log(`${key}: ${equipmentData[key]}`);
+                    });
+                }
+
+                if (equipmentData) {
+                    this.equipmentDetails = {
+                        // Datos generales
+                        codigo: equipmentData.codigo || '',
+                        funcionariousuario: equipmentData.funcionariousuario || '',
+                        fecharegistro: equipmentData.fecharegistro || '',
+                        garantia: equipmentData.garantia || '',
+                        
+                        // Componentes electrónicos
+                        procesador: equipmentData.procesador || '',
+                        memoria: equipmentData.memoria || '',
+                        discoduro: equipmentData.discoduro || '',
+                        so: equipmentData.so || '',
+                        mac: equipmentData.mac || '',
+                        ip: equipmentData.ip || '',
+                        
+                        // Componentes adicionales
+                        tarjetamadre: equipmentData.tarjetamadre || '',
+                        tarjetavideo: equipmentData.tarjetavideo || '',
+                        lector: equipmentData.lector || '',
+                        antivirus: equipmentData.antivirus || '',
+                        
+                        // Características de hardware
+                        marca: equipmentData.marca || '',
+                        modelo: equipmentData.modelo || '',
+                        serie: equipmentData.serie || '',
+                        tipo: equipmentData.tipo || '',
+                        
+                        // Información adicional
+                        funcionarioasignado: equipmentData.funcionarioasignado || '',
+                        oficina: equipmentData.oficina || '',
+                        responsable: equipmentData.responsable || null
+                    };
+                    console.log('equipmentDetails establecidos:', this.equipmentDetails);
+                    this._changeDetectorRef.detectChanges();
+                } else {
+                    console.log('No se encontraron datos del equipo');
+                    this.equipmentDetails = null;
+                }
+                console.groupEnd();
+                this.loading = false;
+            },
+            error: (err) => {
+                console.error('Error al obtener detalles del equipo:', err);
+                this.equipmentDetails = null;
+                this.loading = false;
+            }
+        });
     }
 
     // Agregar método para manejar el focus

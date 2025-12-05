@@ -11,13 +11,12 @@
                         <!-- Fecha Inicio -->
                         <div class="flex flex-col">
                             <label class="text-sm mb-2">Fecha Inicio</label>
-                            <mat-form-field class="w-full">
-                                <input matInput [matDatepicker]="pickerInicio" 
-                                       [(ngModel)]="fechaInicioDisplay"
-                                       (dateChange)="onFechaInicioChange($event)"
-                                       [value]="fechaInicioDisplay"
-                                       [placeholder]="formatDisplayDate(fechaInicioDisplay)">
-                                <mat-datepicker-toggle matIconSuffix [for]="pickerInicio"></mat-datepicker-toggle>
+                            <mat-form-field>
+                                <input matInput 
+                                       [matDatepicker]="pickerInicio"
+                                       [(ngModel)]="fechaInicio"
+                                       placeholder="Fecha Inicio">
+                                <mat-datepicker-toggle matSuffix [for]="pickerInicio"></mat-datepicker-toggle>
                                 <mat-datepicker #pickerInicio></mat-datepicker>
                             </mat-form-field>
                         </div>
@@ -25,13 +24,12 @@
                         <!-- Fecha Fin -->
                         <div class="flex flex-col">
                             <label class="text-sm mb-2">Fecha Fin</label>
-                            <mat-form-field class="w-full">
-                                <input matInput [matDatepicker]="pickerFin" 
-                                       [(ngModel)]="fechaFinDisplay"
-                                       (dateChange)="onFechaFinChange($event)"
-                                       [value]="fechaFinDisplay"
-                                       [placeholder]="formatDisplayDate(fechaFinDisplay)">
-                                <mat-datepicker-toggle matIconSuffix [for]="pickerFin"></mat-datepicker-toggle>
+                            <mat-form-field>
+                                <input matInput 
+                                       [matDatepicker]="pickerFin"
+                                       [(ngModel)]="fechaFin"
+                                       placeholder="Fecha Fin">
+                                <mat-datepicker-toggle matSuffix [for]="pickerFin"></mat-datepicker-toggle>
                                 <mat-datepicker #pickerFin></mat-datepicker>
                             </mat-form-field>
                         </div>

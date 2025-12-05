@@ -216,6 +216,9 @@
             <div *ngIf="bienes" class="mt-4">
                 <mat-card appearance="outlined">
                     <mat-card-content>
+                        <!-- Título de Información de Bienes -->
+                        <h3 class="text-lg font-semibold mb-4">Información de Bienes</h3>
+
                         <!-- Tipo de hardware -->
                         <p *ngIf="bienes.data?.tipo; else noData"><b>Tipo hardware:</b> {{ bienes.data.tipo }}</p>
                         <ng-template #noData><p><b>Tipo hardware:</b> No hay datos</p></ng-template>
@@ -234,6 +237,42 @@
                         <ng-template #noCharacteristics>
                             <p>No hay datos de características</p>
                         </ng-template>
+
+                        <!-- Información Adicional del Equipo -->
+                        <div *ngIf="equipmentDetails" class="mt-4">
+                            <h4 class="text-md font-semibold mb-2">Detalles del Equipo</h4>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div><b>Código:</b> {{ equipmentDetails.codigo }}</div>
+                                <div><b>Funcionario Usuario:</b> {{ equipmentDetails.funcionariousuario }}</div>
+                                <div><b>Fecha Registro:</b> {{ equipmentDetails.fecharegistro }}</div>
+                                <div><b>Garantía:</b> {{ equipmentDetails.garantia | date:'dd/MM/yyyy' }}</div>
+                                
+                                <!-- Componentes Electrónicos -->
+                                <div *ngIf="equipmentDetails.procesador"><b>Procesador:</b> {{ equipmentDetails.procesador }}</div>
+                                <div *ngIf="equipmentDetails.memoria"><b>Memoria:</b> {{ equipmentDetails.memoria }}</div>
+                                <div *ngIf="equipmentDetails.discoduro"><b>Disco Duro:</b> {{ equipmentDetails.discoduro }}</div>
+                                <div *ngIf="equipmentDetails.so"><b>Sistema Operativo:</b> {{ equipmentDetails.so }}</div>
+                                <div *ngIf="equipmentDetails.mac"><b>Dirección MAC:</b> {{ equipmentDetails.mac }}</div>
+                                <div *ngIf="equipmentDetails.ip"><b>Dirección IP:</b> {{ equipmentDetails.ip }}</div>
+                                
+                                <!-- Componentes Adicionales -->
+                                <div *ngIf="equipmentDetails.tarjetamadre"><b>Tarjeta Madre:</b> {{ equipmentDetails.tarjetamadre }}</div>
+                                <div *ngIf="equipmentDetails.tarjetavideo"><b>Tarjeta de Video:</b> {{ equipmentDetails.tarjetavideo }}</div>
+                                <div *ngIf="equipmentDetails.lector"><b>Lector:</b> {{ equipmentDetails.lector }}</div>
+                                <div *ngIf="equipmentDetails.antivirus"><b>Antivirus:</b> {{ equipmentDetails.antivirus }}</div>
+                                
+                                <!-- Características de Hardware -->
+                                <div *ngIf="equipmentDetails.marca"><b>Marca:</b> {{ equipmentDetails.marca }}</div>
+                                <div *ngIf="equipmentDetails.modelo"><b>Modelo:</b> {{ equipmentDetails.modelo }}</div>
+                                <div *ngIf="equipmentDetails.serie"><b>Serie:</b> {{ equipmentDetails.serie }}</div>
+                                <div *ngIf="equipmentDetails.tipo"><b>Tipo:</b> {{ equipmentDetails.tipo }}</div>
+                                
+                                <!-- Información Adicional -->
+                                <div *ngIf="equipmentDetails.funcionarioasignado"><b>Funcionario Asignado:</b> {{ equipmentDetails.funcionarioasignado }}</div>
+                                <div *ngIf="equipmentDetails.oficina"><b>Oficina:</b> {{ equipmentDetails.oficina }}</div>
+                                <div *ngIf="equipmentDetails.responsable"><b>Responsable:</b> {{ equipmentDetails.responsable }}</div>
+                            </div>
+                        </div>
                     </mat-card-content>
                 </mat-card>
             </div>
