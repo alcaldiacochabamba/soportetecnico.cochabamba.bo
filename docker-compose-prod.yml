@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   frontend:
-    container_name: soportetecnicodev-frontend
+    container_name: soportetecnicoprod-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -10,10 +10,10 @@ services:
       - "8042:4200"
     restart: always
     networks:
-      - soportetecnicodev-network
+      - soportetecnicoprod-network
 
   backend:
-    container_name: soportetecnicoapidev-backend
+    container_name: soportetecnicoapiprod-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -28,10 +28,10 @@ services:
       - uploads_data:/app/uploads
       - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     networks:
-      - soportetecnicodev-network
+      - soportetecnicoprod-network
 
 networks:
-  soportetecnicodev-network:
+  soportetecnicoprod-network:
     driver: bridge
 
 volumes:
