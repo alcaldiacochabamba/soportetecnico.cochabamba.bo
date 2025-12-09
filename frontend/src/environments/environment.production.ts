@@ -1,7 +1,7 @@
 export const environment = {
-     baseUrl: "https://soportetecnicoapidev.cochabamba.bo/api/v1",
-     baseUrlAlt: "https://soportetecnicoapidev.cochabamba.bo", 
-     apiUrl: "https://soportetecnicoapidev.cochabamba.bo/api/v1",
+     baseUrl: "https://soportetecnicoapi.cochabamba.bo/api/v1",
+     baseUrlAlt: "https://soportetecnicoapi.cochabamba.bo", 
+     apiUrl: "https://soportetecnicoapi.cochabamba.bo/api/v1",
      production: true
      
 };

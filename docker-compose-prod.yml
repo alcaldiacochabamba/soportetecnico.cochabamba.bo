@@ -7,7 +7,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "8042:4200"
+      - "4008:4200"
     restart: always
     networks:
       - soportetecnicoprod-network
@@ -18,7 +18,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8041:3002"
+      - "4007:3001"
     restart: always
     env_file:
       - ./backend/.env.prod
