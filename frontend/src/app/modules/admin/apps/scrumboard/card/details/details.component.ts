@@ -1,5 +1,5 @@
 import { Component, Inject, OnInit, OnDestroy, ChangeDetectorRef, HostListener, ViewChild, ElementRef } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormControl } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormControl, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms'; 
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -36,6 +36,28 @@ export const MY_DATE_FORMATS = {
         monthDayA11yLabel: 'DD MMMM',
     },
 };
+// VALIDACION FECHA DE INICIO Y FECHA TERMINADO 
+export const fechasValidator: ValidatorFn = (formGroup: AbstractControl): ValidationErrors | null => {
+  const fechaInicioCtrl = formGroup.get('fechaInicio');
+  const fechaTerminadoCtrl = formGroup.get('fechaTerminado');
+
+  if (fechaInicioCtrl && fechaTerminadoCtrl) {
+    const fechaInicio = fechaInicioCtrl.value;
+    const fechaTerminado = fechaTerminadoCtrl.value;
+
+    if (fechaInicio && fechaTerminado && new Date(fechaTerminado) < new Date(fechaInicio)) {
+      fechaTerminadoCtrl.setErrors({ fechaInvalida: true }); // 👈 error va directo al control
+      return { fechaInvalida: true };
+    } else {
+      // 👌 limpiar errores si ya es válido
+      if (fechaTerminadoCtrl.hasError('fechaInvalida')) {
+        fechaTerminadoCtrl.setErrors(null);
+      }
+    }
+  }
+  return null;
+};
+
 
 @Injectable()
 export class CustomDateAdapter extends NativeDateAdapter {
@@ -91,12 +113,14 @@ interface jsPDFWithPlugin extends jsPDF {
     ]
 })
 export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
+    /** control del guardado explícito */
+    private _savingPromise: Promise<void> | null = null;
     cardForm: FormGroup;
     private _unsubscribeAll: Subject<any> = new Subject<any>();
     tecnicoRegistroNombre: string = '';
     tiposServicio = Object.values(TipoServicio);
     actualizando = false;
-    searchEquipoCtrl = new FormControl('');
+    searchEquipoCtrl = new FormControl<string | Equipo | null>('');
     filteredEquipos: Equipo[] = [];
     bienes: any = null;
     isOptionSelected = false;
@@ -180,7 +204,7 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
 
     ngOnInit(): void {
         // Inicializar el formulario sin validadores inicialmente
-        this.cardForm = this._formBuilder.group({
+                    this.cardForm = this._formBuilder.group({
             solicitante: [''],
             carnet: [''],
             cargoSolicitante: [''],
@@ -209,7 +233,8 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
             fechaEgreso: [''],
             tecnicoEgreso: [''],
             ciResponsableEgreso: ['']
-        });
+            }, { validators: fechasValidator });  // aquí aplicamos el validador
+
 
         // Si no es nuevo, cargar los datos de la tarjeta
         if (!this.data.isNew && this.data.card) {
@@ -243,6 +268,16 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
                 fechaEgreso: this.data.card.fechaEgreso || null,
                 tecnicoEgreso: this.data.card.tecnicoEgreso || ''
             });
+
+            // Forzar ejecución de la validación después del patch
+            this.cardForm.updateValueAndValidity();
+
+            // Marcar touched los campos de fecha para que el error se vea de inmediato
+            this.cardForm.get('fechaInicio')?.markAsTouched();
+            this.cardForm.get('fechaTerminado')?.markAsTouched();
+
+            
+            
 
             // Si hay un equipo_id, buscar su código
             if (this.data.card.codigoBienes) {
@@ -403,12 +438,14 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
     }
 
 
-    onSubmit(): void {
+    onSubmit(): Promise<void> {
         if (this.actualizando) {
-            return;
+            // si ya hay un guardado en curso, reutiliza la promesa existente
+            return this._savingPromise ?? Promise.resolve();
         }
 
         this.actualizando = true;
+
         const formData = this.cardForm.getRawValue();
         const updateData = {
             servicios_id: parseInt(this.data.card.id),
@@ -441,35 +478,45 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
             ciResponsableEgreso: formData.ciResponsableEgreso || " "
         };
 
-        this._scrumboardService.updateService(this.data.card.id, updateData)
-            .pipe(delay(700))
-            .subscribe({
-                next: (response) => {
-                    // Notificar la actualización
-                    this._scrumboardService.notifyCardUpdate('update', Number(this.data.card.id), this.data.card.listId);
-                    
-                    this._snackBar.open('Servicio actualizado correctamente', 'Cerrar', {
-                        duration: 3000,
-                        horizontalPosition: 'end',
-                        verticalPosition: 'top',
-                        panelClass: ['success-snackbar']
-                    });
-                    
-                    this.actualizando = false;
-                    this.cardForm.markAsPristine();
-                },
-                error: (error) => {
-                    console.error('Error en actualización:', error);
-                    this._snackBar.open('Error al actualizar el servicio', 'Cerrar', {
-                        duration: 3000,
-                        horizontalPosition: 'end',
-                        verticalPosition: 'top',
-                        panelClass: ['error-snackbar']
-                    });
-                    this.actualizando = false;
-                }
-            });
+        this._savingPromise = new Promise<void>((resolve) => {
+            this._scrumboardService.updateService(this.data.card.id, updateData)
+                .pipe(delay(700))
+                .subscribe({
+                    next: () => {
+                        this._scrumboardService.notifyCardUpdate(
+                            'update',
+                            Number(this.data.card.id),
+                            this.data.card.listId
+                        );
+
+                        this._snackBar.open('Servicio actualizado correctamente', 'Cerrar', {
+                            duration: 3000,
+                            horizontalPosition: 'end',
+                            verticalPosition: 'top',
+                            panelClass: ['success-snackbar']
+                        });
+
+                        this.actualizando = false;
+                        this.cardForm.markAsPristine();
+                        resolve();
+                    },
+                    error: (error) => {
+                        console.error('Error en actualización:', error);
+                        this._snackBar.open('Error al actualizar el servicio', 'Cerrar', {
+                            duration: 3000,
+                            horizontalPosition: 'end',
+                            verticalPosition: 'top',
+                            panelClass: ['error-snackbar']
+                        });
+                        this.actualizando = false;
+                        resolve(); // resolvemos para no bloquear el flujo
+                    }
+                });
+        });
+
+        return this._savingPromise;
     }
+
 
     onCancel(): void {
         this.dialogRef.close();
@@ -649,6 +696,7 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
             });
         }
     }
+    
 
     // Agregar método para manejar el focus
     onFocus(): void {
@@ -757,6 +805,8 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
         };
     }
 
+    
+
     private loadImage(url: string): Promise<HTMLImageElement> {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -765,6 +815,8 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
             img.src = url;
         });
     }
+
+    
 
     // Método privado para formatear fechas de manera consistente
     private formatDate(dateString: string | null | undefined): string {
@@ -791,293 +843,327 @@ export class ScrumboardCardDetailsComponent implements OnInit, OnDestroy {
             return 'N/A';
         }
     }
+    /** Espera ms milisegundos */
+private _sleep(ms: number): Promise<void> {
+  return new Promise(res => setTimeout(res, ms));
+}
+
+/** Guarda si hay cambios y rehidrata la card desde backend (con anti-cache y reintentos) */
+private async _saveAndRefresh(maxRetries = 6, delayMs = 250): Promise<void> {
+  // 1) Forzar guardado si hay cambios o si ya hay un guardado en curso
+  if (this.cardForm.dirty || this.actualizando) {
+    await this.onSubmit();
+  }
+
+  const id = String(this.data.card.id);
+
+  // 2) Reintentos para obtener versión fresca
+  for (let i = 0; i < maxRetries; i++) {
+    const noCacheId = id + `?t=${Date.now()}`; // cache-buster
+    const fresh = await this._scrumboardService.getServiceById(noCacheId).toPromise();
+
+    if (fresh) {
+      // compara con el form para decidir si ya “refleja” lo último
+      // valores del form para comparar
+const f = this.cardForm.getRawValue();
+
+// normaliza observaciones y equipo en ambos lados
+const formObs    = (f.observaciones ?? f.observacionesProblema ?? '').trim();
+const freshObs   = ((fresh as any).observaciones ?? fresh.observacionesProblema ?? '').trim();
+
+const formEquipo  = String(f.equipo ?? f.codigoBienes ?? '');
+const freshEquipo = String(((fresh as any).equipo ?? fresh.codigoBienes ?? ''));
+
+const matches =
+  (fresh.estado ?? '')       === (f.estado ?? '') &&
+  (fresh.problema ?? '')     === (f.problema ?? '') &&
+  freshObs                   === formObs &&
+  (fresh.informe ?? '')      === (f.informe ?? '') &&
+  freshEquipo                === formEquipo;
+
+
+      if (matches || i === maxRetries - 1) {
+        // sincroniza in-memory y formulario (sin emitir valueChanges)
+        this.data.card = { ...this.data.card, ...fresh };
+        this.cardForm.patchValue(this.data.card, { emitEvent: false });
+        return;
+      }
+    }
+
+    await this._sleep(delayMs);
+  }
+}
+
 
     private async generarPDFCompleto(): Promise<jsPDFWithPlugin> {
-        if (!this.data.card) {
-            throw new Error('No hay servicio seleccionado');
+        if (!this.data.card) throw new Error('No hay servicio seleccionado');
+
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' }) as jsPDFWithPlugin;
+        const pageWidth  = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const MARGIN_X = 8;
+        const START_Y  = 12;
+        const today    = new Date();
+                // PRIORIDAD: valores del form sobre this.data.card
+// PRIORIDAD: valores del form sobre this.data.card
+const formVal = this.cardForm?.getRawValue?.() ?? {};
+const src: any = { ...this.data.card, ...formVal };
+
+
+        
+
+        // ====== Equipo (registro de equipo) ======
+        let equipoDetalle: any = null;
+        let codigoEquipoFromUI: string | null = null;
+        const ctrlVal = this.searchEquipoCtrl?.value as string | Equipo | null;
+        if (typeof ctrlVal === 'string') codigoEquipoFromUI = ctrlVal.trim() || null;
+        else if (ctrlVal && typeof ctrlVal === 'object' && 'codigo' in ctrlVal) codigoEquipoFromUI = (ctrlVal as Equipo).codigo || null;
+        const equiposId: number | null = this.cardForm?.get('equipo')?.value ?? null;
+
+        if (equiposId) {
+            try { equipoDetalle = await this._scrumboardService.getEquipoDetalleById(equiposId).toPromise(); }
+            catch { equipoDetalle = null; }
+        }
+        let tipoDescFromApi: string | null = null;
+        if (equipoDetalle?.tipo && !equipoDetalle?.tipoDescripcion) {
+            try { tipoDescFromApi = await this._scrumboardService.getTipoDescripcionById(Number(equipoDetalle.tipo)).toPromise(); }
+            catch { tipoDescFromApi = null; }
         }
 
-        const doc = new jsPDF() as jsPDFWithPlugin;
-        const pageWidth = doc.internal.pageSize.width;
-        const today = new Date();
+        // ====== Header compacto ======
+        const logoImg = await this.loadImage('/assets/images/logo/logo.svg');
+        const canvas  = document.createElement('canvas'); canvas.width = 90; canvas.height = 90;
+        const ctx = canvas.getContext('2d')!; ctx.drawImage(logoImg, 0, 0, canvas.width, canvas.height);
+        const logoBase64 = canvas.toDataURL('image/png');
+        doc.addImage(logoBase64, 'PNG', MARGIN_X, START_Y - 4, 7, 7);
 
-        try {
-            // Cargar logo
-            const logoImg = await this.loadImage('/assets/images/logo/logo.svg');
-            const canvas = document.createElement('canvas');
-            canvas.width = 100;
-            canvas.height = 100;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(logoImg, 0, 0, canvas.width, canvas.height);
-            const logoBase64 = canvas.toDataURL('image/png');
+        doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
+        doc.text('SISTEMA DE SERVICIO TÉCNICO', MARGIN_X + 10, START_Y - 1);
 
-            // Agregar logo
-            doc.addImage(logoBase64, 'PNG', 15, 10, 25, 25);
+        doc.setFontSize(9);
+        doc.text('DETALLE DE SERVICIO TÉCNICO', MARGIN_X, START_Y + 4);
 
-            // Título
-            doc.setFontSize(16);
-            doc.text('Detalle de Servicio Técnico', pageWidth/2, 25, { align: 'center' });
-            
-            doc.setFontSize(12);
-            doc.text(`Fecha de generación: ${today.toLocaleDateString()} ${today.toLocaleTimeString()}`, pageWidth/2, 35, { align: 'center' });
+        // 👉 Fecha/Hora + Paginación en el ENCABEZADO (ya no hay pie)
+        doc.setFont(undefined, 'normal'); doc.setFontSize(6.6);
+        doc.text(
+            `FECHA ${today.toLocaleDateString()}  HORA ${today.toLocaleTimeString()}  ·  Pág. 1/1`,
+            pageWidth - MARGIN_X,
+            START_Y + 4,
+            { align: 'right' }
+        );
 
-            // Obtener el nombre del técnico asignado
-            const tecnicoAsignado = this.tecnicos.find(t => t.id === this.data.card.tecnicoAsignado)?.nombre || 'Sin asignar';
+        doc.setLineWidth(0.1);
+        doc.line(MARGIN_X, START_Y + 5.5, pageWidth - MARGIN_X, START_Y + 5.5);
 
-            // Formatear las fechas
-            const fechaRegistro = this.formatDisplayDate(this.data.card.fechaRegistro);
-            const fechaInicio = this.formatDisplayDate(this.data.card.fechaInicio);
-            const fechaTerminado = this.formatDisplayDate(this.data.card.fechaTerminado);
+        let y = START_Y + 9;
 
-            // Información del servicio
-            const data = [
-                ['ID Servicio', this.data.card.id || 'N/A'],
-                ['Nombre Solicitante', this.data.card.nombreSolicitante || 'N/A'],
-                ['Carnet', this.data.card.carnet || 'N/A'],
-                ['Cargo', this.data.card.cargo || 'N/A'],
-                ['Tipo de Solicitante', this.data.card.tipoSolicitante || 'N/A'],
-                ['Oficina', this.data.card.oficinaSolicitante || 'N/A'],
-                ['Teléfono', this.data.card.telefonoSolicitante || 'N/A'],
-                ['Tipo de Servicio', this.data.card.tipo || 'N/A'],
-                ['Estado', this.data.card.estado || 'N/A'],
-                ['Técnico Asignado', tecnicoAsignado],
-                ['Técnico Registro', this.tecnicoRegistroNombre || 'N/A'],
-                ['Fecha de Registro', fechaRegistro],
-                ['Fecha de Inicio', fechaInicio],
-                ['Fecha de Término', fechaTerminado],
-                ['Problema', this.data.card.problema || 'N/A'],
-                ['Observaciones', this.data.card.observacionesProblema || 'N/A'],
-                ['Informe', this.data.card.informe || 'N/A']
-            ];
-
-            doc.autoTable({
-                startY: 45,
-                head: [['Campo', 'Valor']],
-                body: data,
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [109, 85, 159],
-                    textColor: 255,
-                    fontSize: 10,
-                    fontStyle: 'bold',
+        // ====== Utilidades para tablas compactas ======
+        const drawTriTable = (pairs: Array<[string, string]>) => {
+            const rows: any[] = [];
+            for (let i = 0; i < pairs.length; i += 3) {
+                const a = pairs[i]   || ['', ''];
+                const b = pairs[i+1] || ['', ''];
+                const c = pairs[i+2] || ['', ''];
+                rows.push([a[0], a[1], b[0], b[1], c[0], c[1]]);
+            }
+            const labelW = 22;
+            const valueW = (pageWidth - 2*MARGIN_X - labelW*3) / 3;
+            (doc as any).autoTable({
+                startY: y + 1,
+                theme: 'plain',
+                body: rows,
+                styles: { fontSize: 6.6, cellPadding: 0.35, overflow: 'linebreak', valign: 'middle' },
+                columnStyles: {
+                    0: { cellWidth: labelW, fontStyle: 'bold' }, 1: { cellWidth: valueW },
+                    2: { cellWidth: labelW, fontStyle: 'bold' }, 3: { cellWidth: valueW },
+                    4: { cellWidth: labelW, fontStyle: 'bold' }, 5: { cellWidth: valueW },
                 },
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 3,
-                },
+                margin: { left: MARGIN_X, right: MARGIN_X },
             });
+            return (doc as any).lastAutoTable?.finalY || (y + 1);
+        };
 
-            // Si hay información de bienes, agregar en una nueva página
-            if (this.bienes?.data) {
-                doc.addPage();
-                doc.setFontSize(14);
-                doc.text('Información de Bienes', pageWidth/2, 20, { align: 'center' });
-
-                const bienesData = [
-                    ['Tipo Hardware', this.bienes.data.tipo || 'N/A'],
-                    ['Descripción', this.bienes.data.observacion || 'N/A'],
-                    ['Unidad', this.bienes.data.unidad || 'N/A'],
-                    ['Marca', this.bienes.data.caracteristicas?.MARCA || 'N/A'],
-                    ['Modelo', this.bienes.data.caracteristicas?.MODELO || 'N/A'],
-                    ['Serie', this.bienes.data.caracteristicas?.SERIE || 'N/A']
-                ];
-
-                doc.autoTable({
-                    startY: 30,
-                    head: [['Característica', 'Valor']],
-                    body: bienesData,
-                    theme: 'grid',
-                    headStyles: {
-                        fillColor: [109, 85, 159],
-                        textColor: 255,
-                        fontSize: 10,
-                        fontStyle: 'bold',
-                    },
-                    styles: {
-                        fontSize: 9,
-                        cellPadding: 3,
-                    },
-                });
+        const drawTwoPerRow = (pairs: Array<[string, string]>, labelW = 28) => {
+            const rows: any[] = [];
+            for (let i = 0; i < pairs.length; i += 2) {
+                const a = pairs[i]   || ['', ''];
+                const b = pairs[i+1] || ['', ''];
+                rows.push([a[0], a[1], b[0], b[1]]);
             }
+            const valueW = (pageWidth - 2*MARGIN_X - labelW*2) / 2;
+            (doc as any).autoTable({
+                startY: y + 1,
+                theme: 'plain',
+                body: rows,
+                styles: { fontSize: 6.6, cellPadding: 0.35, overflow: 'linebreak', valign: 'middle' },
+                columnStyles: {
+                    0: { cellWidth: labelW, fontStyle: 'bold' }, 1: { cellWidth: valueW },
+                    2: { cellWidth: labelW, fontStyle: 'bold' }, 3: { cellWidth: valueW },
+                },
+                margin: { left: MARGIN_X, right: MARGIN_X },
+            });
+            return (doc as any).lastAutoTable?.finalY || (y + 1);
+        };
 
-            // Agregar numeración de páginas
-            const pageCount = doc.internal.getNumberOfPages();
-            for(let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                doc.setFontSize(8);
-                doc.text(`Página ${i} de ${pageCount}`, pageWidth - 20, doc.internal.pageSize.height - 10);
-            }
+        // ====== Datos del servicio (3 columnas) ======
+        doc.setFont(undefined, 'bold'); doc.setFontSize(8.2); doc.text('DATOS DEL SERVICIO', MARGIN_X, y);
+const fechaRegistro  = this.formatDisplayDate(src.fechaRegistro);
+const fechaInicio    = this.formatDisplayDate(src.fechaInicio);
+const fechaTerminado = this.formatDisplayDate(src.fechaTerminado);
+const tecnicoAsignadoNombre =
+  this.tecnicos?.find?.(t => t.id === src.tecnicoAsignado)?.nombre || 'Sin asignar';
 
-        } catch (error) {
-            console.error('Error al generar el PDF:', error);
-            throw error;
+    const servicioPairs: Array<[string, string]> = [
+    ['Tipo de Servicio', String(src.tipo ?? 'N/A')],
+    ['Estado', String(src.estado ?? 'N/A')],
+    ['ID', String(src.id ?? 'N/A')],
+    ['Registro', fechaRegistro],
+    ['Inicio', fechaInicio],
+    ['Término', fechaTerminado],
+    ['Solicitante', String(src.nombreSolicitante ?? src.solicitante ?? 'N/A')],
+    ['CI', String(src.carnet ?? 'N/A')],
+    ['Cargo', String(src.cargo ?? 'N/A')],
+    ['Tipo Sol.', String(src.tipoSolicitante ?? 'N/A')],
+    ['Oficina', String(src.oficinaSolicitante ?? 'N/A')],
+    ['Teléfono', String(src.telefonoSolicitante ?? 'N/A')],
+    ['Tec. Asignado', tecnicoAsignadoNombre],
+    ['Tec. Registro', this.tecnicoRegistroNombre || 'N/A'],
+    ];
+
+        y = drawTriTable(servicioPairs);
+
+        // ====== Equipo (2 por fila) ======
+        const tipoDesc = equipoDetalle?.tipoDescripcion || tipoDescFromApi || '';
+        const codigoEquipo = equipoDetalle?.codigo || codigoEquipoFromUI || src.codigoBienes || 'N/A';
+
+
+        const idRows = [
+            ['Código de Bienes', String(codigoEquipo || 'N/A')],
+            ['Tipo de Hardware', String(tipoDesc || 'N/A')],
+            ['Marca', String(equipoDetalle?.marca || 'N/A')],
+        ].filter((r): r is [string,string] => !!r[1] && r[1] !== 'N/A');
+        const hwRows = [
+            ['Procesador', String(equipoDetalle?.procesador || 'N/A')],
+            ['Memoria RAM', String(equipoDetalle?.memoria || 'N/A')],
+            ['Disco Duro', String(equipoDetalle?.discoduro || 'N/A')],
+            ['Tarjeta Madre', String(equipoDetalle?.tarjetamadre || 'N/A')],
+            ['Tarjeta de Video', String(equipoDetalle?.tarjetavideo || 'N/A')],
+        ].filter((r): r is [string,string] => !!r[1] && r[1] !== 'N/A');
+
+        if (idRows.length || hwRows.length) {
+            y += 3; doc.setFont(undefined, 'bold'); doc.setFontSize(8.2); doc.text('EQUIPO', MARGIN_X, y);
+            if (idRows.length) { y = drawTwoPerRow(idRows, 26); }
+            if (hwRows.length) { y = drawTwoPerRow(hwRows, 26); }
         }
 
+        // ====== Datos de egreso (solo TERMINADO) — 2 por fila ======
+       const estadoActual: string = String(src.estado ?? '');
+if (estadoActual.toUpperCase() === 'TERMINADO') {
+  const tecnicoEgresoNombre = String(src.tecnicoEgreso ?? '').trim();
+  const fechaEgreso = this.formatDisplayDate(src.fechaEgreso);
+
+             const egresoRows = [
+    ['Técnico Egreso', tecnicoEgresoNombre || 'N/A'],
+    ['Fecha Egreso', fechaEgreso || 'N/A'],
+    ['Resp. Egreso', String(src.nombreResponsableEgreso ?? 'N/A')],
+    ['Cargo Resp.', String(src.cargoResponsableEgreso ?? 'N/A')],
+    ['CI Resp.', String(src.ciResponsableEgreso ?? 'N/A')],
+    ['Tel. Resp.', String(src.telefonoResponsableEgreso ?? 'N/A')],
+    ['Tipo Resp.', String(src.tipoResponsableEgreso ?? 'N/A')],
+    ['Oficina Resp.', String(src.oficinaResponsableEgreso ?? 'N/A')],
+  ].filter((r): r is [string,string] => !!r[1] && r[1] !== 'N/A');
+
+            if (egresoRows.length) {
+                y += 3; doc.setFont(undefined, 'bold'); doc.setFontSize(8.2); doc.text('DATOS DE EGRESO', MARGIN_X, y);
+                y = drawTwoPerRow(egresoRows, 28);
+            }
+        }
+
+        // ====== Bloques de texto — líneas cortas ======
+        const addWrapped = (titulo: string, contenido: any) => {
+            const txt = String(contenido ?? '').trim();
+            if (!txt) return;
+            y += 2.5;
+            doc.setFont(undefined, 'bold'); doc.setFontSize(8);
+            doc.text(titulo, MARGIN_X, y);
+            doc.setFont(undefined, 'normal'); doc.setFontSize(6.8);
+            const wrapped = doc.splitTextToSize(txt, pageWidth - 2*MARGIN_X);
+            let lineY = y + 2.6; const lineH = 2.8;
+            for (const line of wrapped) {
+                if (lineY > START_Y + 140) break; // límite ~media plana
+                doc.text(line, MARGIN_X, lineY);
+                lineY += lineH;
+            }
+            y = lineY - 0.4;
+        };
+
+addWrapped('PROBLEMA',      src.problema);
+addWrapped('OBSERVACIONES', src.observacionesProblema ?? src.observaciones);
+addWrapped('INFORME',       src.informe);
+
+
+
+        // ====== Firma compacta ======
+        const firmaY = Math.min(y + 6.5, START_Y + 140); // dentro de media plana
+        const x2 = pageWidth - MARGIN_X; const x1 = x2 - 48;
+        doc.setFont(undefined, 'bold'); doc.setFontSize(7.8);
+        doc.text('Firma', (x1 + x2) / 2, firmaY - 1.6, { align: 'center' });
+        doc.setLineWidth(0.2); doc.line(x1, firmaY, x2, firmaY);
+
+    
         return doc;
     }
 
-    async generarPDF(): Promise<void> {
-        try {
-            console.group('Generación de PDF - Depuración');
-            console.log('Datos de la tarjeta actual:', this.data.card);
 
-            // Verificar que el ID de la tarjeta sea válido
-            if (!this.data.card || !this.data.card.id) {
-                console.warn('No se puede generar el PDF: Información de la tarjeta no disponible');
-                this._snackBar.open('No se puede generar el PDF: Información de la tarjeta no disponible', 'Cerrar', { 
-                    duration: 3000,
-                    horizontalPosition: 'center',
-                    verticalPosition: 'bottom'
-                });
-                console.groupEnd();
-                return;
-            }
-
-            // Convertir el ID a string para la llamada al servicio
-            const cardId = this.data.card.id.toString();
-            console.log('ID del servicio a buscar:', cardId);
-
-            // Mostrar indicador de carga
-            this.loading = true;
-
-            try {
-                // Obtener los datos actualizados del servicio
-                console.log('Iniciando llamada a getServiceById con ID:', cardId);
-                const cardResponse = await this._scrumboardService.getServiceById(cardId)
-                    .toPromise()
-                    .then(response => {
-                        console.log('Respuesta de getServiceById:', response);
-                        return response;
-                    })
-                    .catch(error => {
-                        console.error('Error en getServiceById:', error);
-                        throw error;
-                    });
-
-                // Verificar si se obtuvieron datos
-                if (!cardResponse) {
-                    console.warn(`No se encontró información para el servicio con ID ${cardId}`);
-                    this._snackBar.open(`No se encontró información para el servicio con ID ${cardId}`, 'Cerrar', { 
-                        duration: 3000,
-                        horizontalPosition: 'center',
-                        verticalPosition: 'bottom'
-                    });
-                    this.loading = false;
-                    console.groupEnd();
-                    return;
-                }
-
-                console.log('Datos del servicio obtenidos:', cardResponse);
-
-                // Obtener información adicional de bienes si existe código de bienes
-                let bienesInfo = null;
-                if (cardResponse.codigoBienes) {
-                    try {
-                        console.log('Buscando información de bienes para código:', cardResponse.codigoBienes);
-                        bienesInfo = await this._scrumboardService.getBienes(cardResponse.codigoBienes)
-                            .toPromise()
-                            .then(response => {
-                                console.log('Respuesta de getBienes:', response);
-                                return response;
-                            })
-                            .catch(error => {
-                                console.warn('No se pudo obtener información de bienes:', error);
-                                return null;
-                            });
-                    } catch (error) {
-                        console.warn('Error al obtener bienes:', error);
-                    }
-                }
-
-                // Actualizar los datos de la tarjeta con la respuesta más reciente
-                this.data.card = {
-                    ...this.data.card,
-                    ...cardResponse
-                };
-
-                // Generar PDF con los datos actualizados
-                const pdfData = {
-                    ...cardResponse,
-                    bienesInfo: bienesInfo?.data || null
-                };
-
-                console.log('Datos para generar PDF:', pdfData);
-
-                // Generar el PDF
-                const doc = await this.generarPDFCompleto();
-                
-                // Generar el blob del PDF
-                const pdfBuffer = doc.output('arraybuffer');
-                const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
-                
-                // Crear URL para el blob
-                const blobUrl = window.URL.createObjectURL(blob);
-                
-                // Abrir en nueva pestaña
-                window.open(blobUrl, '_blank');
-                
-                // Crear el link de descarga
-                const link = document.createElement('a');
-                link.href = blobUrl;
-                link.download = `servicio_${cardId}_${new Date().toISOString().split('T')[0]}.pdf`;
-                
-                // Simular click para mostrar el diálogo nativo de descarga
-                link.click();
-                
-                // Limpiar
-                setTimeout(() => {
-                    window.URL.revokeObjectURL(blobUrl);
-                }, 2000);
-
-                this._snackBar.open('PDF generado exitosamente', 'Cerrar', { 
-                    duration: 2000,
-                    horizontalPosition: 'center',
-                    verticalPosition: 'bottom'
-                });
-
-                console.groupEnd();
-
-            } catch (error) {
-                console.error('Error al obtener datos del servicio:', error);
-
-                // Manejar errores específicos
-                if (error.status === 404) {
-                    console.warn(`Servicio no encontrado. El servicio con ID ${cardId} no existe.`);
-                    this._snackBar.open(`Servicio no encontrado. El servicio con ID ${cardId} no existe.`, 'Cerrar', { 
-                        duration: 5000,
-                        horizontalPosition: 'center',
-                        verticalPosition: 'bottom'
-                    });
-                } else if (error.status === 500) {
-                    console.warn('Error interno del servidor.');
-                    this._snackBar.open('Error interno del servidor. Intente nuevamente más tarde.', 'Cerrar', { 
-                        duration: 3000,
-                        horizontalPosition: 'center',
-                        verticalPosition: 'bottom'
-                    });
-                } else {
-                    console.warn('Error inesperado al generar el PDF.');
-                    this._snackBar.open('No se pudo generar el PDF. Ocurrió un error inesperado.', 'Cerrar', { 
-                        duration: 3000,
-                        horizontalPosition: 'center',
-                        verticalPosition: 'bottom'
-                    });
-                }
-
-                console.groupEnd();
-            } finally {
-                this.loading = false;
-            }
-
-        } catch (generalError) {
-            console.error('Error general al generar el PDF:', generalError);
-            this._snackBar.open('Ocurrió un error inesperado al generar el PDF.', 'Cerrar', { 
-                duration: 3000,
-                horizontalPosition: 'center',
-                verticalPosition: 'bottom'
-            });
-        }
+async generarPDF(): Promise<void> {
+  try {
+    if (!this.data.card?.id) {
+      this._snackBar.open('No se puede generar el PDF: Información de la tarjeta no disponible', 'Cerrar', { 
+        duration: 3000, horizontalPosition: 'center', verticalPosition: 'bottom'
+      });
+      return;
     }
+
+    this.loading = true;
+
+    // 1) GUARDA + REHIDRATA (con anti-cache y reintentos)
+    await this._saveAndRefresh();
+
+    // 2) Genera el PDF con datos frescos (form ya sincronizado)
+    const doc = await this.generarPDFCompleto();
+
+    // 3) Descarga/abre
+    const pdfBuffer = doc.output('arraybuffer');
+    const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    window.open(blobUrl, '_blank');
+
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `servicio_${this.data.card.id}_${new Date().toISOString().split('T')[0]}.pdf`;
+    link.click();
+
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 2000);
+
+    this._snackBar.open('PDF generado exitosamente', 'Cerrar', { 
+      duration: 2000, horizontalPosition: 'center', verticalPosition: 'bottom'
+    });
+  } catch (e: any) {
+    console.error('Error al generar el PDF:', e);
+    if (e?.status === 404) {
+      this._snackBar.open('Servicio no encontrado.', 'Cerrar', { duration: 5000 });
+    } else if (e?.status === 500) {
+      this._snackBar.open('Error interno del servidor.', 'Cerrar', { duration: 3000 });
+    } else {
+      this._snackBar.open('No se pudo generar el PDF.', 'Cerrar', { duration: 3000 });
+    }
+  } finally {
+    this.loading = false;
+  }
+}
+
+
 
     async imprimirPDF(): Promise<void> {
         try {

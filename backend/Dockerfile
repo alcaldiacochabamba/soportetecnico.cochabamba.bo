@@ -9,11 +9,13 @@ RUN npm install
 FROM node:20.17.0 as prod
 WORKDIR /app
 
-# Copiar las dependencias de la fase de builder
-COPY --from=builder /app/node_modules ./node_modules
+
 
 # Copiar el código fuente
 COPY . .
+
+# Copiar las dependencias de la fase de builder
+COPY --from=builder /app/node_modules ./node_modules
 
 # Configurar la zona horaria
 ENV TZ=America/La_Paz

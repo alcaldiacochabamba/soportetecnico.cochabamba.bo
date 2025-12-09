@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { fuseAnimations } from '@fuse/animations';
 import { FuseAlertComponent, FuseAlertType } from '@fuse/components/alert';
 import { FuseValidators } from '@fuse/validators';
@@ -19,10 +19,20 @@ import { finalize } from 'rxjs';
     encapsulation: ViewEncapsulation.None,
     animations   : fuseAnimations,
     standalone   : true,
-    imports      : [NgIf, FuseAlertComponent, FormsModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, RouterLink],
+    imports      : [
+        NgIf,
+        FuseAlertComponent,
+        FormsModule,
+        ReactiveFormsModule,
+        MatFormFieldModule,
+        MatInputModule,
+        MatButtonModule,
+        MatIconModule,
+        MatProgressSpinnerModule,
+        RouterLink,
+    ],
 })
-export class AuthResetPasswordComponent implements OnInit
-{
+export class AuthResetPasswordComponent implements OnInit {
     @ViewChild('resetPasswordNgForm') resetPasswordNgForm: NgForm;
 
     alert: { type: FuseAlertType; message: string } = {
@@ -30,89 +40,98 @@ export class AuthResetPasswordComponent implements OnInit
         message: '',
     };
     resetPasswordForm: UntypedFormGroup;
-    showAlert: boolean = false;
+    showAlert = false;
+    private _token = '';
 
-    /**
-     * Constructor
-     */
+    // Flags para validación dinámica
+    passwordLength = false;
+    hasNumber = false;
+    hasLetter = false;
+    hasSpecialChar = false;
+
     constructor(
         private _authService: AuthService,
         private _formBuilder: UntypedFormBuilder,
-    )
-    {
-    }
+        private _route: ActivatedRoute,
+        private _router: Router,
+    ) {}
 
-    // -----------------------------------------------------------------------------------------------------
-    // @ Lifecycle hooks
-    // -----------------------------------------------------------------------------------------------------
+    ngOnInit(): void {
+        // Recuperamos el token desde la URL
+        this._token = this._route.snapshot.queryParamMap.get('token') || '';
 
-    /**
-     * On init
-     */
-    ngOnInit(): void
-    {
-        // Create the form
-        this.resetPasswordForm = this._formBuilder.group({
-                password       : ['', Validators.required],
+        this.resetPasswordForm = this._formBuilder.group(
+            {
+                // minLength actualizado a 8 según requisito
+                password       : ['', [Validators.required, Validators.minLength(8)]],
                 passwordConfirm: ['', Validators.required],
             },
             {
                 validators: FuseValidators.mustMatch('password', 'passwordConfirm'),
             },
         );
+
+        // Suscribir cambios de contraseña para actualizar indicadores dinámicos
+        this.resetPasswordForm.get('password')?.valueChanges.subscribe((value: string) => {
+            this.updatePasswordChecks(value || '');
+        });
     }
 
-    // -----------------------------------------------------------------------------------------------------
-    // @ Public methods
-    // -----------------------------------------------------------------------------------------------------
+    // Getter para saber si se cumplen todas las reglas
+    get allCriteriaMet(): boolean {
+        return this.passwordLength && this.hasNumber && this.hasLetter && this.hasSpecialChar;
+    }
+
+    // Actualiza los flags de validación en vivo
+    private updatePasswordChecks(value: string): void {
+        this.passwordLength  = value.length >= 8;
+        this.hasNumber       = /\d/.test(value);
+        this.hasLetter       = /[A-Za-z]/.test(value);
+        // Cualquier carácter NO alfanumérico cuenta como especial
+        this.hasSpecialChar  = /[^A-Za-z0-9]/.test(value);
+    }
 
     /**
-     * Reset password
+     * Restablece la contraseña
      */
-    resetPassword(): void
-    {
-        // Return if the form is invalid
-        if ( this.resetPasswordForm.invalid )
-        {
+    resetPassword(): void {
+        // Bloqueo doble: formulario inválido o reglas no cumplidas
+        if (this.resetPasswordForm.invalid || !this.allCriteriaMet) {
+            // Marca los controles como tocados para mostrar errores si fuese necesario
+            this.resetPasswordForm.markAllAsTouched();
             return;
         }
 
-        // Disable the form
         this.resetPasswordForm.disable();
-
-        // Hide the alert
         this.showAlert = false;
 
-        // Send the request to the server
-        this._authService.resetPassword(this.resetPasswordForm.get('password').value)
+        const newPassword = this.resetPasswordForm.get('password')?.value;
+
+        this._authService
+            .resetPassword(newPassword, this._token)
             .pipe(
-                finalize(() =>
-                {
-                    // Re-enable the form
+                finalize(() => {
                     this.resetPasswordForm.enable();
-
-                    // Reset the form
                     this.resetPasswordNgForm.resetForm();
-
-                    // Show the alert
                     this.showAlert = true;
+                    // Reiniciar indicadores
+                    this.passwordLength = this.hasNumber = this.hasLetter = this.hasSpecialChar = false;
                 }),
             )
             .subscribe(
-                (response) =>
-                {
-                    // Set the alert
+                () => {
                     this.alert = {
                         type   : 'success',
-                        message: 'Your password has been reset.',
+                        message: 'Tu contraseña ha sido restablecida correctamente.',
                     };
+                    // Redirigir al login después de 2s
+                    setTimeout(() => this._router.navigate(['/sign-in']), 2000);
                 },
-                (response) =>
-                {
-                    // Set the alert
+                (error) => {
+                    console.error('Error en resetPassword:', error);
                     this.alert = {
                         type   : 'error',
-                        message: 'Something went wrong, please try again.',
+                        message: 'Hubo un error al restablecer la contraseña. Inténtalo de nuevo.',
                     };
                 },
             );

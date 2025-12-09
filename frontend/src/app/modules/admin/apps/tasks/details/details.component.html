@@ -171,28 +171,45 @@
                 <mat-datepicker #pickerRegistro></mat-datepicker>
             </mat-form-field>
         </div>
-
         <!-- Sexta fila -->
         <div class="grid grid-cols-2 gap-4 mb-4 mt-2">
-            <mat-form-field [subscriptSizing]="'dynamic'">
-                <mat-label>Fecha Inicio</mat-label>
-                <input matInput [formControlName]="'fechaInicio'" [matDatepicker]="pickerInicio" readonly>
-                <mat-datepicker-toggle matIconSuffix [for]="pickerInicio">
-                    <mat-icon matDatepickerToggleIcon>keyboard_arrow_down</mat-icon>
-                </mat-datepicker-toggle>
-                <mat-datepicker #pickerInicio></mat-datepicker>
-            </mat-form-field>
-            
-            <mat-form-field [subscriptSizing]="'dynamic'">
-                <mat-label>Fecha Terminado</mat-label>
-                <input matInput [formControlName]="'fechaTerminado'" [matDatepicker]="pickerTerminado" readonly>
-                <mat-datepicker-toggle matIconSuffix [for]="pickerTerminado">
-                    <mat-icon matDatepickerToggleIcon>keyboard_arrow_down</mat-icon>
-                </mat-datepicker-toggle>
-                <mat-datepicker #pickerTerminado></mat-datepicker>
-            </mat-form-field>
-            <div></div> <!-- Espacio vacío para mantener la alineación -->
+
+        <!-- Fecha Inicio -->
+        <mat-form-field [subscriptSizing]="'dynamic'">
+            <mat-label>Fecha Inicio</mat-label>
+            <input matInput
+                formControlName="fechaInicio"
+                [matDatepicker]="pickerInicio"
+                readonly>
+            <mat-datepicker-toggle matIconSuffix [for]="pickerInicio">
+            <mat-icon matDatepickerToggleIcon>keyboard_arrow_down</mat-icon>
+            </mat-datepicker-toggle>
+            <mat-datepicker #pickerInicio></mat-datepicker>
+        </mat-form-field>
+
+        <!-- Fecha Terminado -->
+        <mat-form-field [subscriptSizing]="'dynamic'">
+            <mat-label>Fecha Terminado</mat-label>
+            <input matInput
+                formControlName="fechaTerminado"
+                [matDatepicker]="pickerTerminado"
+                [min]="servicioForm.get('fechaInicio')?.value"
+                readonly>
+            <mat-datepicker-toggle matIconSuffix [for]="pickerTerminado">
+            <mat-icon matDatepickerToggleIcon>keyboard_arrow_down</mat-icon>
+            </mat-datepicker-toggle>
+            <mat-datepicker #pickerTerminado></mat-datepicker>
+
+            <!-- Error usando el validador fechasValidator -->
+            <mat-error *ngIf="servicioForm.get('fechaTerminado')?.hasError('fechaInvalida')">
+            La fecha de terminado no puede ser anterior a la fecha de inicio
+            </mat-error>
+        </mat-form-field>
+
+        <div></div> <!-- Espacio vacío para mantener la alineación -->
+
         </div>
+
 
         <!-- Campos de texto -->
         <div class="flex flex-col gap-4 mb-4">
@@ -284,6 +301,51 @@
                 Buscar
             </button>
         </div>
+
+        <!-- Identificación / Hardware del Equipo -->
+<div class="mt-4">
+  <mat-label class="text-lg font-medium mb-2 block">
+    <b>Identificación del Equipo</b>
+  </mat-label>
+
+  <mat-card appearance="outlined">
+    <!-- Si hay datos del equipo -->
+    <mat-card-content *ngIf="equipoDetalle as eq; else noEquipoDatos">
+      <div class="grid grid-cols-2 gap-4">
+
+        <!-- Identificación -->
+        <p><b>Código de bienes:</b> {{ eq.codigo || 'N/A' }}</p>
+        <p>
+          <b>Tipo de hardware:</b>
+          {{ eq.tipoDescripcion || eq.tipoNombre || eq.tipo || 'N/A' }}
+        </p>
+        <p><b>Marca:</b> {{ eq.marca || 'N/A' }}</p>
+        <p><b>Modelo:</b> {{ eq.modelo || 'N/A' }}</p>
+        <p><b>Serie:</b> {{ eq.serie || 'N/A' }}</p>
+
+        <!-- Especificaciones -->
+        <p><b>Procesador:</b> {{ eq.procesador || 'N/A' }}</p>
+        <p><b>Memoria RAM:</b> {{ eq.memoria || 'N/A' }}</p>
+        <p><b>Disco duro:</b> {{ eq.discoduro || 'N/A' }}</p>
+        <p><b>Tarjeta madre:</b> {{ eq.tarjetamadre || 'N/A' }}</p>
+        <p><b>Tarjeta de video:</b> {{ eq.tarjetavideo || 'N/A' }}</p>
+        <p><b>IP:</b> {{ eq.ip || 'N/A' }}</p>
+        <p><b>MAC:</b> {{ eq.mac || 'N/A' }}</p>
+      </div>
+    </mat-card-content>
+
+    <!-- Si no hay datos aún -->
+    <ng-template #noEquipoDatos>
+      <mat-card-content>
+        <p class="text-sm text-gray-500">
+          No hay datos del equipo. Selecciona un código en “Equipo” y presiona
+          <b>Buscar</b>.
+        </p>
+      </mat-card-content>
+    </ng-template>
+  </mat-card>
+</div>
+        
 
         <!-- Información de Bienes -->
         <div class="mt-4">

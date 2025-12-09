@@ -1328,17 +1328,36 @@ export class InventoryListComponent implements OnInit, AfterViewInit, OnDestroy 
         }
     }
 
-    // Método para formatear fechas en los reportes
-    formatDisplayDate(dateString: string | null | undefined): string {
-        const formattedDate = this.formatDate(dateString);
-        if (!formattedDate) return 'N/A';
+        // Método para formatear fechas en los reportes
+        formatDisplayDate(dateString: string | null | undefined): string {
+        if (!dateString) return 'N/A';
 
         try {
-            return new Date(formattedDate).toLocaleDateString();
+            let fecha: Date;
+
+            if (dateString.includes('/')) {
+            // Caso formato "DD/MM/YYYY"
+            const [day, month, year] = dateString.split('/');
+            fecha = new Date(+year, +month - 1, +day);
+            } else {
+            // Caso formato ISO (ej: "2024-04-15T19:00:08.275Z")
+            fecha = new Date(dateString);
+            }
+
+            // Validar que sea fecha válida
+            if (isNaN(fecha.getTime())) return 'N/A';
+
+            return fecha.toLocaleDateString('es-BO', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+            });
         } catch {
             return 'N/A';
         }
-    }
+        }
+
+
 
     // Modificar otros métodos que usen fechas
     formatDateForApi(date: Date): string {
@@ -1368,121 +1387,177 @@ export class InventoryListComponent implements OnInit, AfterViewInit, OnDestroy 
         return endDate;
     }
 
-    private async generarPDFCompleto(): Promise<jsPDFWithPlugin> {
+        private async generarPDFCompleto(): Promise<jsPDFWithPlugin> {
         if (!this.selectedEquipment) {
             throw new Error('No hay equipo seleccionado');
         }
 
         // Obtener datos actualizados del equipo
-        const equipmentResponse = await this._inventoryService.getEquipmentById(this.selectedEquipment.equipos_id).toPromise();
+        const equipmentResponse = await this._inventoryService
+            .getEquipmentById(this.selectedEquipment.equipos_id)
+            .toPromise();
         const equipoActualizado = equipmentResponse.data;
 
-        const doc = new jsPDF() as jsPDFWithPlugin;
-        const pageWidth = doc.internal.pageSize.width;
+        // === DOC EN MM, A4, MÁRGENES COMPACTOS ===
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' }) as jsPDFWithPlugin;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const MARGIN_X = 12;
+        const START_Y = 18;
         const today = new Date();
 
         try {
-            // Cargar logo
+            // === LOGO PEQUEÑO ===
             const logoImg = await this.loadImage('/assets/images/logo/logo.svg');
             const canvas = document.createElement('canvas');
-            canvas.width = 100;
-            canvas.height = 100;
-            const ctx = canvas.getContext('2d');
+            canvas.width = 120; canvas.height = 120;
+            const ctx = canvas.getContext('2d')!;
             ctx.drawImage(logoImg, 0, 0, canvas.width, canvas.height);
             const logoBase64 = canvas.toDataURL('image/png');
 
-            // Agregar logo
-            doc.addImage(logoBase64, 'PNG', 15, 10, 25, 25);
+            // Logo a la izquierda
+            doc.addImage(logoBase64, 'PNG', MARGIN_X, START_Y - 6, 10, 10);
 
-            // Título
-            doc.setFontSize(16);
-            doc.text('Ficha Técnica de Equipo', pageWidth/2, 25, { align: 'center' });
-            
-            doc.setFontSize(12);
-            doc.text(`Fecha de generación: ${today.toLocaleDateString()} ${today.toLocaleTimeString()}`, pageWidth/2, 35, { align: 'center' });
+            // === ENCABEZADO COMPACTO ===
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('SISTEMA DE LABORATORIO TÉCNICO', MARGIN_X + 14, START_Y - 3);
 
-            // Información del equipo
-            const data = [
-                ['Código de Bienes', equipoActualizado.codigo || 'N/A'],
-                ['Serie', equipoActualizado.serie || 'N/A'],
-                ['Tipo', equipoActualizado.tipoDescripcion || 'N/A'],
-                ['Marca', equipoActualizado.marca || 'N/A'],
-                ['Modelo', equipoActualizado.modelo || 'N/A'],
-                ['Funcionario Usuario', equipoActualizado.funcionariousuario || 'N/A'],
-                ['Funcionario Asignado', equipoActualizado.funcionarioasignado || 'N/A'],
-                ['Oficina', equipoActualizado.oficina || 'N/A'],
-                ['Procesador', equipoActualizado.procesador || 'N/A'],
-                ['Memoria RAM', equipoActualizado.memoria || 'N/A'],
-                ['Disco Duro', equipoActualizado.discoduro || 'N/A'],
-                ['Tarjeta Madre', equipoActualizado.tarjetamadre || 'N/A'],
-                ['Tarjeta de Video', equipoActualizado.tarjetavideo || 'N/A'],
-                ['Sistema Operativo', equipoActualizado.so || 'N/A'],
-                ['Antivirus', equipoActualizado.antivirus || 'N/A'],
-                ['MAC', equipoActualizado.mac || 'N/A'],
-                ['IP', equipoActualizado.ip || 'N/A'],
-                ['Lector DVD', equipoActualizado.lector ? 'Sí' : 'No'],   
-                ['Fecha de Registro', this.formatDisplayDate(equipoActualizado.fecharegistro)],
-                ['Garantía', equipoActualizado.garantia || 'N/A'],
-                ['Responsable del Registro', equipoActualizado.responsabledelregistroString || 'N/A'],
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'bold');
+            doc.text('FICHA TÉCNICA DE EQUIPO', MARGIN_X, START_Y + 6);
+
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text(
+            `FECHA ${today.toLocaleDateString()}  HORA ${today.toLocaleTimeString()}`,
+            pageWidth - MARGIN_X,
+            START_Y + 6,
+            { align: 'right' }
+            );
+
+            // Separador sutil
+            doc.setLineWidth(0.1);
+            doc.line(MARGIN_X, START_Y + 8, pageWidth - MARGIN_X, START_Y + 8);
+
+            // === DATOS DEL EQUIPO (RÓTULO) ===
+            let y = START_Y + 14;
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            doc.text('DATOS DEL EQUIPO', MARGIN_X, y);
+            y += 2;
+
+            // === TABLA EN DOS COLUMNAS (Etiqueta/Valor | Etiqueta/Valor) ===
+            const baseData: Array<[string, any]> = [
+            ['Código de Bienes', equipoActualizado.codigo || 'N/A'],
+            ['Serie', equipoActualizado.serie || 'N/A'],
+            ['Tipo', equipoActualizado.tipoDescripcion || 'N/A'],
+            ['Marca', equipoActualizado.marca || 'N/A'],
+            ['Modelo', equipoActualizado.modelo || 'N/A'],
+            ['Funcionario Usuario', equipoActualizado.funcionariousuario || 'N/A'],
+            ['Funcionario Asignado', equipoActualizado.funcionarioasignado || 'N/A'],
+            ['Oficina', equipoActualizado.oficina || 'N/A'],
+            ['Procesador', equipoActualizado.procesador || 'N/A'],
+            ['Memoria RAM', equipoActualizado.memoria || 'N/A'],
+            ['Disco Duro', equipoActualizado.discoduro || 'N/A'],
+            ['Tarjeta Madre', equipoActualizado.tarjetamadre || 'N/A'],
+            ['Tarjeta de Video', equipoActualizado.tarjetavideo || 'N/A'],
+            ['Sistema Operativo', equipoActualizado.so || 'N/A'],
+            ['Antivirus', equipoActualizado.antivirus || 'N/A'],
+            ['MAC', equipoActualizado.mac || 'N/A'],
+            ['IP', equipoActualizado.ip || 'N/A'],
+            ['Lector DVD', equipoActualizado.lector ? 'Sí' : 'No'],
+            ['Fecha de Ingreso', this.formatDisplayDate(equipoActualizado.fecharegistro)],
+            ['Garantía', equipoActualizado.garantia || 'N/A'],
+            ['Responsable del Registro', equipoActualizado.responsabledelregistroString || 'N/A'],
             ];
 
-            doc.autoTable({
-                startY: 45,
-                head: [['Característica', 'Valor']],
-                body: data,
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [109, 85, 159],
-                    textColor: 255,
-                    fontSize: 10,
-                    fontStyle: 'bold',
-                },
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 3,
-                },
+            // Mezcla campos clave de "Bienes" (SIN segunda página)
+            if (this.bienes?.data) {
+            const b = this.bienes.data;
+            baseData.push(
+                ['Tipo Hardware (Bienes)', b.tipo || 'N/A'],
+                ['Unidad (Bienes)', b.unidad || 'N/A'],
+                ['Marca (Bienes)', b.caracteristicas?.MARCA || 'N/A'],
+                ['Modelo (Bienes)', b.caracteristicas?.MODELO || 'N/A'],
+                ['Serie (Bienes)', b.caracteristicas?.SERIE || 'N/A'],
+            );
+            }
+
+            // Divide a dos columnas
+            const half = Math.ceil(baseData.length / 2);
+            const left = baseData.slice(0, half);
+            const right = baseData.slice(half);
+            const body2Cols: any[] = [];
+            for (let i = 0; i < left.length; i++) {
+            const L = left[i] || ['', ''];
+            const R = right[i] || ['', ''];
+            body2Cols.push([L[0], L[1], R[0], R[1]]);
+            }
+
+            // Anchos calculados
+            const labelW = 34; // ancho etiqueta
+            const contentW = (pageWidth - 2 * MARGIN_X - labelW * 2) / 2; // valor
+
+            (doc as any).autoTable({
+            startY: y + 2,
+            theme: 'plain',
+            head: [],
+            body: body2Cols,
+            styles: {
+                fontSize: 8,
+                cellPadding: 0.8,
+                overflow: 'linebreak',
+                valign: 'middle',
+            },
+            columnStyles: {
+                0: { cellWidth: labelW, fontStyle: 'bold' }, // Etiq 1
+                1: { cellWidth: contentW },                  // Valor 1
+                2: { cellWidth: labelW, fontStyle: 'bold' }, // Etiq 2
+                3: { cellWidth: contentW },                  // Valor 2
+            },
+            margin: { left: MARGIN_X, right: MARGIN_X },
+
+            // === FIX: línea inferior segura una vez por fila (última col), con guardas numéricas
+            didDrawCell: (hookData: any) => {
+                const isBody = hookData.section === 'body';
+                const isLastCol = hookData.column.index === hookData.table.columns.length - 1;
+
+                if (isBody && isLastCol) {
+                const startX = Number(hookData.table.startX);
+                const endX = Number(hookData.table.startX + hookData.table.width);
+                const yLine = Number(hookData.cell.y + hookData.cell.height);
+
+                if (
+                    Number.isFinite(startX) &&
+                    Number.isFinite(endX) &&
+                    Number.isFinite(yLine)
+                ) {
+                    doc.setLineWidth(0.1);
+                    doc.setDrawColor(0, 0, 0);
+                    doc.line(startX, yLine, endX, yLine);
+                }
+                }
+            },
             });
 
-            // Información de bienes si está disponible
-            if (this.bienes?.data) {
-                doc.addPage();
-                doc.setFontSize(14);
-                doc.text('Información de Bienes', pageWidth/2, 20, { align: 'center' });
+            // === BLOQUE PROBLEMA / DESCRIPCIÓN (solo bienes.observacion) ===
+            let afterTableY = (doc as any).lastAutoTable?.finalY || (START_Y + 22);
+            const problemaTxt = String(this.bienes?.data?.observacion ?? '').trim();
 
-                const bienesData = [
-                    ['Tipo Hardware', this.bienes.data.tipo || 'N/A'],
-                    ['Descripción', this.bienes.data.observacion || 'N/A'],
-                    ['Unidad', this.bienes.data.unidad || 'N/A'],
-                    ['Marca (Bienes)', this.bienes.data.caracteristicas?.MARCA || 'N/A'],
-                    ['Modelo (Bienes)', this.bienes.data.caracteristicas?.MODELO || 'N/A'],
-                    ['Serie (Bienes)', this.bienes.data.caracteristicas?.SERIE || 'N/A']
-                ];
-
-                doc.autoTable({
-                    startY: 30,
-                    head: [['Característica', 'Valor']],
-                    body: bienesData,
-                    theme: 'grid',
-                    headStyles: {
-                        fillColor: [109, 85, 159],
-                        textColor: 255,
-                        fontSize: 10,
-                        fontStyle: 'bold',
-                    },
-                    styles: {
-                        fontSize: 9,
-                        cellPadding: 3,
-                    },
-                });
+            if (problemaTxt) {
+            afterTableY += 4;
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            doc.text('DESCRIPCIÓN (bienes)', MARGIN_X, afterTableY);
+            doc.setFont(undefined, 'normal');
+            const wrapped = doc.splitTextToSize(problemaTxt, pageWidth - 2 * MARGIN_X);
+            doc.text(wrapped, MARGIN_X, afterTableY + 4);
             }
 
-            // Agregar numeración de páginas
-            const pageCount = doc.internal.getNumberOfPages();
-            for(let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                doc.setFontSize(8);
-                doc.text(`Página ${i} de ${pageCount}`, pageWidth - 20, doc.internal.pageSize.height - 10);
-            }
+            // === PIE DE PÁGINA OPCIONAL ===
+            doc.setFontSize(7);
+            doc.text('Página 1 de 1', pageWidth - MARGIN_X, pageHeight - 6, { align: 'right' });
 
         } catch (error) {
             console.error('Error al generar el PDF:', error);
@@ -1490,7 +1565,8 @@ export class InventoryListComponent implements OnInit, AfterViewInit, OnDestroy 
         }
 
         return doc;
-    }
+        }
+
 
     async generarPDF(): Promise<void> {
         try {

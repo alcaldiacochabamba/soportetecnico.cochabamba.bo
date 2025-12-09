@@ -102,9 +102,15 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
             cards: []
         },
         {
+            id: 'egreso',
+            title: EstadoServicio.EGRESO,
+            position: 4,
+            cards: []
+        },
+        {
             id: 'terminado',
             title: EstadoServicio.TERMINADO,
-            position: 4,
+            position: 5,
             cards: []
         }
     ];
@@ -113,6 +119,7 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
         'sin-asignar': { page: 1, limit: 10, total: 0, loading: false },
         'pendiente': { page: 1, limit: 10, total: 0, loading: false },
         'en-progreso': { page: 1, limit: 10, total: 0, loading: false },
+        'egreso': { page: 1, limit: 10, total: 0, loading: false },
         'terminado': { page: 1, limit: 10, total: 0, loading: false }
     };
 
@@ -1294,6 +1301,8 @@ export class ScrumboardBoardComponent implements OnInit, OnDestroy {
                 return EstadoServicio.PENDIENTE;
             case 'en-progreso':
                 return EstadoServicio.EN_PROGRESO;
+            case 'egreso':
+                return EstadoServicio.EGRESO;
             case 'terminado':
                 return EstadoServicio.TERMINADO;
             default:

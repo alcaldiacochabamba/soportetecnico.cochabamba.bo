@@ -100,19 +100,28 @@
                 <mat-datepicker #pickerRegistro disabled="true"></mat-datepicker>
             </mat-form-field>
 
-            <mat-form-field class="w-full">
-                <mat-label>Fecha de Inicio</mat-label>
-                <input matInput [matDatepicker]="pickerInicio" formControlName="fechaInicio">
-                <mat-datepicker-toggle matSuffix [for]="pickerInicio"></mat-datepicker-toggle>
-                <mat-datepicker #pickerInicio></mat-datepicker>
-            </mat-form-field>
+                <mat-form-field class="w-full">
+                    <mat-label>Fecha de Inicio</mat-label>
+                    <input matInput [matDatepicker]="pickerInicio" formControlName="fechaInicio">
+                    <mat-datepicker-toggle matSuffix [for]="pickerInicio"></mat-datepicker-toggle>
+                    <mat-datepicker #pickerInicio></mat-datepicker>
+                </mat-form-field>
 
-            <mat-form-field class="w-full">
-                <mat-label>Fecha de Término</mat-label>
-                <input matInput [matDatepicker]="pickerTermino" formControlName="fechaTerminado">
-                <mat-datepicker-toggle matSuffix [for]="pickerTermino"></mat-datepicker-toggle>
-                <mat-datepicker #pickerTermino></mat-datepicker>
-            </mat-form-field>
+                <mat-form-field class="w-full">
+                    <mat-label>Fecha de Término</mat-label>
+                    <input matInput 
+                        [matDatepicker]="pickerTermino" 
+                        formControlName="fechaTerminado" 
+                        [min]="cardForm.get('fechaInicio')?.value">
+                    <mat-datepicker-toggle matSuffix [for]="pickerTermino"></mat-datepicker-toggle>
+                    <mat-datepicker #pickerTermino></mat-datepicker>
+
+                    <mat-error *ngIf="cardForm.hasError('fechaInvalida')">
+                        La fecha de término no puede ser anterior a la fecha de inicio.
+                    </mat-error>
+                </mat-form-field>
+
+
 
             <!-- Técnico Asignado -->
             <div class="relative w-full">
@@ -240,8 +249,8 @@
         </div>
 
         <!-- Información de Egreso (Solo visible cuando el estado es TERMINADO) -->
-        <div *ngIf="cardForm.get('estado').value === 'TERMINADO'" class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8">
-            
+       <div *ngIf="['TERMINADO','EGRESO'].includes(cardForm.get('estado')?.value)" 
+                class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8">         
 
             <div class="relative w-full">
                 <mat-form-field class="w-full">

@@ -64,6 +64,20 @@ interface ServiceResponse {
         }>;
     };
 }
+// === Interfaces opcionales para tipado local ===
+interface EquipoDetalle {
+    equipos_id?: number;
+    codigo?: string;
+    tipo?: number | string;           // puede venir como id o string
+    tipoDescripcion?: string | null;  // nombre legible del tipo
+    marca?: string | null;
+    procesador?: string | null;
+    memoria?: string | null;
+    discoduro?: string | null;
+    tarjetamadre?: string | null;
+    tarjetavideo?: string | null;
+}
+
 
 interface Empleado {
     id: number;
@@ -351,6 +365,7 @@ export class ScrumboardService {
                             fechaTerminado = " ";
                             break;
                         case EstadoServicio.TERMINADO:
+                        case EstadoServicio.EGRESO:
                             // Si no tiene fecha de inicio (es " " o null), establecerla como la fecha actual
                             fechaInicio = (!currentService.fechaInicio || currentService.fechaInicio === " ") ? 
                                 new Date().toISOString() : 
@@ -992,6 +1007,91 @@ export class ScrumboardService {
                 return of(null);
             })
         );
+    }
+        // === Devuelve un detalle de equipo por ID (intentando traer todo lo útil) ===
+    getEquipoDetalleById(equiposId: number): Observable<EquipoDetalle | null> {
+        return this._httpClient.get<any>(`${this.apiUrl}/equipment/${equiposId}`).pipe(
+            map((resp) => {
+                const d = resp?.data;
+                if (!d) return null;
+
+                // Estructuras comunes (ajusta si tu backend usa otras claves)
+                // d.equipos_id.*   o   d.*
+                const base = (d.equipos_id && typeof d.equipos_id === 'object') ? d.equipos_id : d;
+
+                const detalle: EquipoDetalle = {
+                    equipos_id: Number(base.equipos_id) || Number(d.equipos_id) || undefined,
+                    codigo: base.codigo || d.codigo || null,
+                    tipo: base.tipo ?? d.tipo ?? null,
+                    tipoDescripcion: base.tipoDescripcion ?? d.tipoDescripcion ?? null,
+                    marca: base.marca ?? d.marca ?? null,
+
+                    // Hardware (si el backend los expone aquí)
+                    procesador: base.procesador ?? d.procesador ?? null,
+                    memoria: base.memoria ?? d.memoria ?? null,
+                    discoduro: base.discoduro ?? d.discoduro ?? null,
+                    tarjetamadre: base.tarjetamadre ?? d.tarjetamadre ?? null,
+                    tarjetavideo: base.tarjetavideo ?? d.tarjetavideo ?? null,
+                };
+
+                return detalle;
+            }),
+            catchError(err => {
+                console.warn('getEquipoDetalleById fallback -> null', err);
+                return of(null);
+            })
+        );
+    }
+
+    /**
+     * Si el backend solo te devuelve el ID del tipo de hardware,
+     * usa este método para obtener la descripción legible.
+     * Ajusta la URL a la de tu API si es distinta.
+     */
+    getTipoDescripcionById(tipoId: number): Observable<string | null> {
+        if (!tipoId && tipoId !== 0) return of(null);
+
+        // ❗️AJUSTA esta ruta a tu backend real si es otra:
+        const url = `${this.apiUrl}/equipment/type/${tipoId}`;
+
+        return this._httpClient.get<any>(url).pipe(
+            map(resp => {
+                // Intenta varias claves comunes
+                return (
+                    resp?.data?.descripcion ||
+                    resp?.data?.nombre ||
+                    resp?.descripcion ||
+                    resp?.nombre ||
+                    null
+                );
+            }),
+            catchError(err => {
+                console.warn('getTipoDescripcionById fallback -> null', err);
+                return of(null);
+            })
+        );
+    }
+
+    /**
+     * (Opcional) Si ya tienes bienes cargado y quieres “fabricar”
+     * un EquipoDetalle compatible para el PDF.
+     */
+    buildEquipoDetalleFromBienes(bienes: any): EquipoDetalle | null {
+        const b = bienes?.data;
+        if (!b) return null;
+
+        const car = b.caracteristicas || {};
+        return {
+            codigo: b.codigo || null, // si tu proxy devuelve this
+            tipo: b.tipo || null,     // puede ser string ya
+            tipoDescripcion: b.tipo || null, // normalmente en bienes viene “tipo” ya legible
+            marca: car.MARCA || null,
+            procesador: car.PROCESADOR || null,
+            memoria: car.MEMORIA_RAM || null,
+            discoduro: car.DISCO_DURO || null,
+            tarjetamadre: car.TARJETA_MADRE || null,
+            tarjetavideo: car.TARJETA_VIDEO || null
+        };
     }
 
     buscarEmpleadosPorCI(ci: string): Observable<any> {

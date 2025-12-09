@@ -8,9 +8,6 @@ services:
     ports:
       - "8042:4200"
     restart: always
-    volumes:
-      - ./frontend:/code
-      - /code/node_modules
     networks:
       - soportetecnicodev-network
 
@@ -27,8 +24,6 @@ services:
     command: >
       sh -c "npx sequelize-cli db:migrate && node app"
     volumes:
-      - ./backend:/app
-      - /app/node_modules
       - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     networks:
       - soportetecnicodev-network
